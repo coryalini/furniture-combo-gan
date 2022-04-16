@@ -10,18 +10,18 @@ import traceback
 from mesh_to_sdf import get_surface_point_cloud,scale_to_unit_cube, scale_to_unit_sphere, BadMeshException
 
 DATASET_NAME = 'chairs'
-DIRECTORY_MODELS = 'data/shapenet/03001627'
+DIRECTORY_MODELS = '../data/2785/objs'
 MODEL_EXTENSION = '.obj'
-DIRECTORY_VOXELS = 'data/{:s}/voxels_{{:d}}/'.format(DATASET_NAME)
-DIRECTORY_UNIFORM = 'data/{:s}/uniform/'.format(DATASET_NAME)
-DIRECTORY_SURFACE = 'data/{:s}/surface/'.format(DATASET_NAME)
-DIRECTORY_SDF_CLOUD = 'data/{:s}/cloud/'.format(DATASET_NAME)
-DIRECTORY_BAD_MESHES = 'data/{:s}/bad_meshes/'.format(DATASET_NAME)
+DIRECTORY_VOXELS = '../data/{:s}/voxels_{{:d}}/'.format(DATASET_NAME)
+DIRECTORY_UNIFORM = '../data/{:s}/uniform/'.format(DATASET_NAME)
+DIRECTORY_SURFACE = '../data/{:s}/surface/'.format(DATASET_NAME)
+DIRECTORY_SDF_CLOUD = '../data/{:s}/cloud/'.format(DATASET_NAME)
+DIRECTORY_BAD_MESHES = '../data/{:s}/bad_meshes/'.format(DATASET_NAME)
 
 # Voxel resolutions to create.
 # Set to [] if no voxels are needed.
 # Set to [32] for for all models except for the progressively growing DeepSDF/Voxel GAN
-VOXEL_RESOLUTIONS = [8, 16, 32, 64]
+VOXEL_RESOLUTIONS = [32]
 
 CREATE_SDF_CLOUDS = False # For DeepSDF autodecoder, contains uniformly and non-uniformly sampled points as proposed in the DeepSDF paper
 CREATE_UNIFORM_AND_SURFACE = True # Uniformly sampled points for the Pointnet-based GAN and surface point clouds for the pointnet-based GAN with refinement
