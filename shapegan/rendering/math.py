@@ -11,7 +11,7 @@ PROJECTION_MATRIX = np.array(
 def get_rotation_matrix(angle, axis='y'):
     rotation = Rotation.from_euler(axis, angle, degrees=True)
     matrix = np.identity(4)
-    matrix[:3, :3] = rotation.as_dcm()
+    matrix[:3, :3] = rotation.as_matrix()
     return matrix
 
 def get_camera_transform(camera_distance, rotation_y, rotation_x=0, project=False):

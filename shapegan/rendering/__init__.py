@@ -14,7 +14,7 @@ from rendering.binary_voxels_to_mesh import create_binary_voxel_mesh
 from rendering.shader import Shader
 
 import cv2
-import skimage.measure
+import skimage.measure as measure
 
 from threading import Thread, Lock
 import torch
@@ -117,7 +117,7 @@ class MeshRenderer():
             if pad:
                 voxels = np.pad(voxels, 1, mode='constant', constant_values=1)
             try:
-                vertices, faces, normals, _ = skimage.measure.marching_cubes_lewiner(voxels, level=level, spacing=(2.0 / voxel_resolution, 2.0 / voxel_resolution, 2.0 / voxel_resolution))
+                vertices, faces, normals, _ = measure.marching_cubes(voxels, level=level, spacing=(2.0 / voxel_resolution, 2.0 / voxel_resolution, 2.0 / voxel_resolution))
                 vertices = vertices[faces, :].astype(np.float32) - 1
                 self.ground_level = np.min(vertices[:, 1]).item()
 

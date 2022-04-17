@@ -7,7 +7,7 @@ from torch.optim import RMSprop
 
 from datasets import PointDataset
 from model.point_sdf_net import PointNet, SDFGenerator
-
+from render_functions import render_partnet_bullshit, render_mesh
 parser = argparse.ArgumentParser()
 parser.add_argument('--category', type=str, required=True)
 args = parser.parse_args()
@@ -43,18 +43,20 @@ for num_points, batch_size, epochs in configuration:
     loader = DataLoader(dataset, batch_size, shuffle=True, num_workers=6)
 
     for epoch in range(1, epochs + 1):
+        print(epoch)
         total_loss = 0
         for uniform, _ in loader:
             num_steps += 1
-            print(uniform.shape)
             uniform = uniform.to(device)
             u_pos, u_dist = uniform[..., :3], uniform[..., 3:]
-            print(u_pos.shape)
-            print(u_dist.shape)
+            print( u_pos.shape, u_dist.shape)
+            render_partnet_bullshit(u_pos[0],u_dist[0])
+
             D_optimizer.zero_grad()
 
             z = torch.randn(uniform.size(0), LATENT_SIZE, device=device)
             fake = G(u_pos, z)
+
             out_real = D(u_pos, u_dist)
             out_fake = D(u_pos, fake)
             D_loss = out_fake.mean() - out_real.mean()

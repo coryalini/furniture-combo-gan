@@ -10,7 +10,7 @@ import traceback
 from mesh_to_sdf import get_surface_point_cloud,scale_to_unit_cube, scale_to_unit_sphere, BadMeshException
 
 DATASET_NAME = 'chairs'
-DIRECTORY_MODELS = '../data/2785/objs'
+DIRECTORY_MODELS = '../data/6969/objs'
 MODEL_EXTENSION = '.obj'
 DIRECTORY_VOXELS = '../data/{:s}/voxels_{{:d}}/'.format(DATASET_NAME)
 DIRECTORY_UNIFORM = '../data/{:s}/uniform/'.format(DATASET_NAME)
@@ -21,7 +21,7 @@ DIRECTORY_BAD_MESHES = '../data/{:s}/bad_meshes/'.format(DATASET_NAME)
 # Voxel resolutions to create.
 # Set to [] if no voxels are needed.
 # Set to [32] for for all models except for the progressively growing DeepSDF/Voxel GAN
-VOXEL_RESOLUTIONS = [32]
+VOXEL_RESOLUTIONS = [8, 16, 32, 64]
 
 CREATE_SDF_CLOUDS = False # For DeepSDF autodecoder, contains uniformly and non-uniformly sampled points as proposed in the DeepSDF paper
 CREATE_UNIFORM_AND_SURFACE = True # Uniformly sampled points for the Pointnet-based GAN and surface point clouds for the pointnet-based GAN with refinement
@@ -67,6 +67,7 @@ def is_bad_mesh(model_filename):
     return os.path.exists(get_bad_mesh_filename(model_filename))
 
 def get_uniform_and_surface_points(surface_point_cloud, number_of_points = 200000):
+        print(surface_point_cloud.points.shape)
         unit_sphere_points = np.random.uniform(-1, 1, size=(number_of_points * 2, 3)).astype(np.float32)
         unit_sphere_points = unit_sphere_points[np.linalg.norm(unit_sphere_points, axis=1) < 1]
         uniform_points = unit_sphere_points[:number_of_points, :]
@@ -118,7 +119,7 @@ def process_model_file(filename):
             try:
                 if create_uniform_and_surface:
                     uniform_points, uniform_sdf, near_surface_points, near_surface_sdf = get_uniform_and_surface_points(surface_point_cloud, number_of_points=POINT_CLOUD_SAMPLE_SIZE)
-                    
+
                     combined_uniform = np.concatenate((uniform_points, uniform_sdf[:, np.newaxis]), axis=1)
                     np.save(get_uniform_filename(filename), combined_uniform)
 
