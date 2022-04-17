@@ -6,7 +6,7 @@ import numpy as np
 import torch
 import tqdm
 import imageio
-
+import os
 from omegaconf import DictConfig
 from PIL import Image
 from pytorch3d.renderer import (
@@ -196,7 +196,7 @@ def create_model(cfg):
 
 
 def train_points(
-    cfg
+    cfg, point_cloud,filename
 ):
 
     # Create model
@@ -206,7 +206,7 @@ def train_points(
     pretrain_sdf(cfg, model)
 
     # Load pointcloud
-    point_cloud = np.load(cfg.data.point_cloud_path)
+    # point_cloud = np.load(cfg.data.point_cloud_path)
     # print(torch.Tensor(point_cloud["verts"][::2]).shape)
     # print(torch.Tensor(point_cloud["verts"]).shape)
     # all_points = torch.Tensor(point_cloud["verts"][::2]).cuda().view(-1, 3)
@@ -280,16 +280,21 @@ def train_points(
                 imageio.mimsave('images/part_2.gif', [np.uint8(im * 255) for im in test_images])
 
                 mesh = implicit_to_mesh(model.implicit_fn, scale=3, device="cuda", thresh=0.002)
-                process_model_file(mesh,cfg.data.point_cloud_path[:-len(".npy")] )
-                render_voxel(image_size=256, voxel_size=64, device=None,output_filename="images/post_process.png")
+                trimmed_filename =filename[:-len(".npy")]
+                print("Input file",trimmed_filename)
+                process_model_file(mesh,trimmed_filename)
+                print("process model finished")
+                # render_voxel(image_size=256, voxel_size=64, device=None,output_filename="images/post_process.png")
                 # print("Saving mesh to", cfg.data.point_cloud_path[:-len(".npy")] +".obj")
                 # # io.save(cfg.data.point_cloud_path[:-len(".npy")],mesh)
                 # # print(mesh.verts_list(), mesh.faces_list())
                 # io.save_obj(cfg.data.point_cloud_path[:-len(".npy")] +".obj",mesh.verts_list()[0], mesh.faces_list()[0])
 
             except Exception as e:
-                print(e)
+                print("rendering/voxel failed",e)
                 # print("Empty mesh")
+
+                exit(1)
                 pass
 
 
@@ -317,124 +322,40 @@ def pretrain_sdf(
         loss.backward()
         optimizer.step()
 
+DIRECTORY_DATA = '../data/combined_pc/'
+DIRECTORY_TRAINING = '../data/chairs/'
+def run_training_for_data(cfg):
+    files = os.listdir(DIRECTORY_DATA)
+
+    for file in files:
+        print(file)
+        point_cloud = np.load(DIRECTORY_DATA+file)
+        prob = torch.randint(0, 10,(1,))
+        if int(prob) <= 8:
+            file1 = open(DIRECTORY_TRAINING + "train.txt", "a")  # append mode
+            print('{:s}\n'.format(file))
+            file1.write('{:s}\n'.format(file))
+            file1.close()
+        else:
+            file1 = open(DIRECTORY_TRAINING + "test.txt", "a")  # append mode
+            '{:s}\n'.format(file)
+            file1.write('{:s}\n'.format(file))
+            file1.close()
+        # train_points(cfg,point_cloud, file)
 #
-# def train_images(
-#     cfg
-# ):
-#     # Create model
-#     model, optimizer, lr_scheduler, start_epoch, checkpoint_path = create_model(cfg)
-#
-#     # Load the training/validation data.
-#     train_dataset, val_dataset, _ = get_nerf_datasets(
-#         dataset_name=cfg.data.dataset_name,
-#         image_size=[cfg.data.image_size[1], cfg.data.image_size[0]],
-#     )
-#
-#     train_dataloader = torch.utils.data.DataLoader(
-#         train_dataset,
-#         batch_size=1,
-#         shuffle=True,
-#         num_workers=0,
-#         collate_fn=lambda batch: batch,
-#     )
-#
-#     # Pretrain SDF
-#     pretrain_sdf(cfg, model)
-#
-#     # Run the main training loop.
-#     for epoch in range(start_epoch, cfg.training.num_epochs):
-#         t_range = tqdm.tqdm(enumerate(train_dataloader))
-#
-#         for iteration, batch in t_range:
-#             image, camera, camera_idx = batch[0].values()
-#             image = image.cuda().unsqueeze(0)
-#             camera = camera.cuda()
-#
-#             # Sample rays
-#             xy_grid = get_random_pixels_from_image(
-#                 cfg.training.batch_size, cfg.data.image_size, camera
-#             )
-#             ray_bundle = get_rays_from_pixels(
-#                 xy_grid, cfg.data.image_size, camera
-#             )
-#             rgb_gt = sample_images_at_xy(image, xy_grid)
-#
-#             # Run model forward
-#             out = model(ray_bundle)
-#
-#             # Color loss
-#             loss = torch.mean(torch.square(rgb_gt - out['color']))
-#             image_loss = loss
-#
-#             # Sample random points in bounding box
-#             eikonal_points = get_random_points(
-#                 cfg.training.batch_size, cfg.training.bounds, 'cuda'
-#             )
-#
-#             # Get sdf gradients and enforce eikonal loss
-#             eikonal_distances, eikonal_gradients = model.implicit_fn.get_distance_and_gradient(eikonal_points)
-#             loss += torch.exp(-1e2 * torch.abs(eikonal_distances)).mean() * cfg.training.inter_weight
-#             loss += eikonal_loss(eikonal_gradients) * cfg.training.eikonal_weight # TODO (2): Implement eikonal loss
-#
-#             # Take the training step.
-#             optimizer.zero_grad()
-#             loss.backward()
-#             optimizer.step()
-#
-#             t_range.set_description(f'Epoch: {epoch:04d}, Loss: {image_loss:.06f}')
-#             t_range.refresh()
-#
-#         # Adjust the learning rate.
-#         lr_scheduler.step()
-#
-#         # Checkpoint.
-#         if (
-#             epoch % cfg.training.checkpoint_interval == 0
-#             and len(cfg.training.checkpoint_path) > 0
-#             and epoch > 0
-#         ):
-#             print(f"Storing checkpoint {checkpoint_path}.")
-#
-#             data_to_store = {
-#                 "model": model.state_dict(),
-#                 "optimizer": optimizer.state_dict(),
-#                 "epoch": epoch,
-#             }
-#
-#             torch.save(data_to_store, checkpoint_path)
-#
-#         # Render
-#         if (
-#             epoch % cfg.training.render_interval == 0
-#             and epoch > 0
-#         ):
-#             test_images = render_images(
-#                 model, create_surround_cameras(4.0, n_poses=20, up=(0.0, 0.0, 1.0), focal_length=2.0),
-#                 cfg.data.image_size, file_prefix='volsdf'
-#             )
-#             imageio.mimsave('images/part_3.gif', [np.uint8(im * 255) for im in test_images])
-#
-#             try:
-#                 test_images = render_geometry(
-#                     model, create_surround_cameras(4.0, n_poses=20, up=(0.0, 0.0, 1.0), focal_length=2.0),
-#                     cfg.data.image_size, file_prefix='volsdf_geometry'
-#                 )
-#                 imageio.mimsave('images/part_3_geometry.gif', [np.uint8(im * 255) for im in test_images])
-#             except Exception as e:
-#                 print("Empty mesh")
-#                 pass
-                
+
 
 @hydra.main(config_path='configs', config_name='torus')
 def main(cfg: DictConfig):
     os.chdir(hydra.utils.get_original_cwd())
+    run_training_for_data(cfg)
 
-    if cfg.type == 'render':
-        render(cfg)
-    elif cfg.type == 'train_points':
-        train_points(cfg)
-    # elif cfg.type == 'train_images':
-    #     train_images(cfg)
+    # if cfg.type == 'render':
+    #     render(cfg)
+    # elif cfg.type == 'train_points':
+    #     train_points(cfg)
+    # # elif cfg.type == 'train_images':
+    # #     train_images(cfg)
 
 
 if __name__ == "__main__":

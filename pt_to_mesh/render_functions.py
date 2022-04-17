@@ -234,9 +234,9 @@ def render_geometry(
     return all_images
 
 
-def render_voxel(voxels=None,image_size=256, voxel_size=64, device=None,output_filename="images/test_voxel.png" ):
-    if voxels is None:
-        voxels = np.load("../data/chairs/voxels_8/a4.npy")
+def render_voxel(voxels,image_size=256, voxel_size=64, device=None,output_filename="images/test_voxel.gif" ):
+    # if voxels is None:
+    #     voxels = np.load("../data/chairs/voxels_8/a4.npy")
     if device is None:
         device = get_device()
     vertices, faces = mcubes.marching_cubes(mcubes.smooth(voxels), isovalue=0)
@@ -255,7 +255,7 @@ def render_voxel(voxels=None,image_size=256, voxel_size=64, device=None,output_f
     mesh = pytorch3d.structures.Meshes([vertices], [faces], textures=pytorch3d.renderer.TexturesVertex(textures)).to(
         device
     )
-    cameras = create_surround_cameras(30.0, n_poses=20, up=(0.0, 1.0, 0.0), focal_length=2.0)
+    cameras = create_surround_cameras(30.0, n_poses=20, up=(0.0, 2.0, 0.0), focal_length=2.0)
     lights = pytorch3d.renderer.PointLights(location=[[0, 0, -3]], device=device)
     mesh_renderer = get_mesh_renderer(image_size=image_size, lights=lights, device=device)
 
@@ -266,11 +266,6 @@ def render_voxel(voxels=None,image_size=256, voxel_size=64, device=None,output_f
             image = mesh_renderer(mesh, cameras=cameras[cam_idx].to(device))
             image = image[0,:,:,:3].detach().cpu().numpy()
             all_images.append(image)
-    # lights = pytorch3d.renderer.PointLights(location=[[0, 0.0, -4.0]], device=device,)
-    # renderer = get_mesh_renderer(image_size=image_size, device=device)
-    # R, T = pytorch3d.renderer.look_at_view_transform(dist=3, elev=0, azim=180)
-    # cameras = pytorch3d.renderer.FoVPerspectiveCameras(R=R, T=T, device=device)
-
     # fig = plot_scene({
     #     "figure": {
     #         "Mesh": mesh,
@@ -287,5 +282,5 @@ def render_voxel(voxels=None,image_size=256, voxel_size=64, device=None,output_f
     #     }
     # })
     # fig.show()
-
-    imageio.mimsave("images/testing_voxel.gif", [np.uint8(im * 255) for im in all_images])
+    imageio.mimsave(output_filename, [np.uint8(im * 255) for im in all_images])
+    print("red herring")
