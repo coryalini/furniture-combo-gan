@@ -25,7 +25,7 @@ G, D = G.to(device), D.to(device)
 G_optimizer = RMSprop(G.parameters(), lr=0.0001)
 D_optimizer = RMSprop(D.parameters(), lr=0.0001)
 
-root = osp.join(f'data/{args.category}')
+root = osp.join(f'../data/{args.category}')
 dataset = PointDataset.from_split(root, split='train')
 
 configuration = [  # num_points, batch_size, epochs
@@ -46,10 +46,11 @@ for num_points, batch_size, epochs in configuration:
         total_loss = 0
         for uniform, _ in loader:
             num_steps += 1
-
+            print(uniform.shape)
             uniform = uniform.to(device)
             u_pos, u_dist = uniform[..., :3], uniform[..., 3:]
-
+            print(u_pos.shape)
+            print(u_dist.shape)
             D_optimizer.zero_grad()
 
             z = torch.randn(uniform.size(0), LATENT_SIZE, device=device)
