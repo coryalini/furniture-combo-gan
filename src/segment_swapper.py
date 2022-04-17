@@ -7,6 +7,7 @@ import os
 import numpy as np
 import utils
 import torch
+import utils
 
 # file path to the stats folder inside stats
 base_filepath = "/home/dupmaka/mf-combo-gan/partnet_dataset/stats"
@@ -139,7 +140,10 @@ def get_sub_pc(id, base_partnet_path, obj_name):
     if obj_name == "Chair":
         keys = list(lengths_sorted.keys())
     else:
-        keys = list(lengths_sorted.keys())[::2]
+        lengths_sorted = {k: v for k, v in sorted(lengths.items(), key=lambda w: w[1], reverse=True)}
+        keys = list(lengths_sorted.keys())
+        keys = keys[:len(keys)//2]
+        
 
     for k in keys:
         max_index = point_label_dict[k]
@@ -176,7 +180,8 @@ for i, t in enumerate(train):
     pc_2, name_2 = get_sub_pc(id_2, base_partnet_path, obj_name_2)
 
     new_pc = torch.from_numpy(np.concatenate([pc_1, pc_2], axis=0))
-    utils.viz_point_cloud(new_pc, "images/"+ name_1 + "_" + name_2 +".gif", "cuda", new_pc.shape[0])
+    utils.viz_point_cloud(new_pc, "../data/combined_images/"+ name_1 + "_" + name_2 +".gif", "cuda", new_pc.shape[0])
+    np.save("../data/combined_pc/"+ name_1 + "_" + name_2 +".npy", new_pc)
 
     # if count < 2:
     #     ids += str(id) + " "
