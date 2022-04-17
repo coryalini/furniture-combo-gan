@@ -291,10 +291,9 @@ def train_points(
                 # io.save_obj(cfg.data.point_cloud_path[:-len(".npy")] +".obj",mesh.verts_list()[0], mesh.faces_list()[0])
 
             except Exception as e:
-                print("rendering/voxel failed",e)
+                print("ERROR::::rendering/voxel failed",e)
                 # print("Empty mesh")
 
-                exit(1)
                 pass
 
 
