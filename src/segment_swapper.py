@@ -8,6 +8,7 @@ import numpy as np
 import utils
 import torch
 import utils
+from scipy.spatial.transform import Rotation as R
 
 # file path to the stats folder inside stats
 base_filepath = "/home/dupmaka/mf-combo-gan/partnet_dataset/stats"
@@ -142,9 +143,8 @@ def get_sub_pc(id, base_partnet_path, obj_name):
     else:
         lengths_sorted = {k: v for k, v in sorted(lengths.items(), key=lambda w: w[1], reverse=True)}
         keys = list(lengths_sorted.keys())
-        keys = keys[:len(keys)//2]
+        keys = keys[:len(keys)//3]
         
-
     for k in keys:
         max_index = point_label_dict[k]
 
@@ -153,7 +153,24 @@ def get_sub_pc(id, base_partnet_path, obj_name):
 
         new_pc.append(pts_selected)
      
-    new_pc = np.concatenate(new_pc, axis=0)
+    try:
+        new_pc = np.concatenate(new_pc, axis=0)
+    except:
+        return [], ids
+
+    if obj_name != "Chair":
+        # rotate table by 90 degrees
+        # Robustness Test: Rotation, 90 z, 180 z, 90x+90y
+        new_pc[:, 0] = new_pc[:, 0]+.7
+        new_pc[:, 1] = new_pc[:, 1]+.1
+        ranges = np.linspace(-np.pi, np.pi, 10)
+        angle = np.random.choice(ranges)
+        r = R.from_rotvec([0, angle, 0])
+        r = r.as_matrix()
+        new_pc = np.matmul(new_pc, r)
+
+        # new_pc = normalize_pc(new_pc)
+
     return new_pc, ids
 
 obj_name_1 = "Chair"
@@ -179,7 +196,14 @@ for i, t in enumerate(train):
     pc_1, name_1 = get_sub_pc(id_1, base_partnet_path, obj_name_1)
     pc_2, name_2 = get_sub_pc(id_2, base_partnet_path, obj_name_2)
 
-    new_pc = torch.from_numpy(np.concatenate([pc_1, pc_2], axis=0))
+    if len(pc_1) == 0 and len(pc_2) > 0:
+        new_pc = torch.from_numpy(pc_2)
+    elif len(pc_1) > 0 and len(pc_2) == 0:
+        new_pc = torch.from_numpy(pc_1)
+    elif len(pc_1) > 0 and len(pc_2) > 0:
+        new_pc = torch.from_numpy(np.concatenate([pc_1, pc_2], axis=0))
+    else:
+        continue
     utils.viz_point_cloud(new_pc, "../data/combined_images/"+ name_1 + "_" + name_2 +".gif", "cuda", new_pc.shape[0])
     np.save("../data/combined_pc/"+ name_1 + "_" + name_2 +".npy", new_pc)
 
