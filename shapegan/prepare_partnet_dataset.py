@@ -111,7 +111,7 @@ def process_model_file(filename):
 
         create_uniform_and_surface = CREATE_UNIFORM_AND_SURFACE and (not os.path.exists(get_uniform_filename(filename)) or not os.path.exists(get_surface_filename(filename)))
         create_sdf_clouds = CREATE_SDF_CLOUDS and not os.path.exists(get_sdf_cloud_filename(filename))
-
+        print("create_uniform_and_surface",create_uniform_and_surface)
         if create_uniform_and_surface or create_sdf_clouds:
             mesh_unit_sphere = scale_to_unit_sphere(mesh)
             surface_point_cloud = get_surface_point_cloud(mesh_unit_sphere, bounding_radius=1, scan_count=SCAN_COUNT, scan_resolution=SCAN_RESOLUTION)
