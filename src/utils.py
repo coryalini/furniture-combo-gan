@@ -8,6 +8,7 @@ from pytorch3d.renderer import (
     PointsRasterizer,
 )
 import imageio
+import numpy as np
 
 def save_checkpoint(epoch, model, args, best=False):
     if best:
@@ -119,6 +120,42 @@ def viz_cls (num_points,verts, path, device):
     rend = renderer(point_cloud, cameras=c).cpu().numpy() # (30, 256, 256, 3)
 
     imageio.mimsave(path, rend, fps=15)
+
+def viz_point_cloud(verts, path, device, num_points):
+
+    # verts = torch.from_numpy(verts)
+    image_size=256
+    background_color=(1, 1, 1)
+    colors = [[1.0,1.0,1.0], [1.0,0.0,1.0], [0.0,1.0,1.0],[1.0,1.0,0.0],[0.0,0.0,1.0], [1.0,0.0,0.0]]
+
+    # Construct various camera viewpoints
+    dist = 3
+    elev = 0
+    azim = [180 - 12*i for i in range(30)]
+    R, T = pytorch3d.renderer.cameras.look_at_view_transform(dist=dist, elev=elev, azim=azim, device=device)
+    c = pytorch3d.renderer.FoVPerspectiveCameras(R=R, T=T, fov=60, device=device)
+
+    sample_verts = verts.unsqueeze(0).repeat(30,1,1).to(torch.float).to(device)
+    sample_colors = torch.zeros((30,num_points,3), device="cuda")
+    sample_colors[:, :, 1] = 1.0
+
+    # Colorize points based on segmentation labels
+    # for i in range(6):
+    #     sample_colors[4] = torch.tensor(colors[4])
+
+    # sample_colors = sample_colors.repeat(30,1,1).to(torch.float)
+
+    point_cloud = pytorch3d.structures.Pointclouds(points=sample_verts, features=sample_colors).to(device)
+
+    renderer = get_points_renderer(image_size=image_size, background_color=background_color, device=device)
+    rend = renderer(point_cloud, cameras=c).cpu().numpy() # (30, 256, 256, 3)
+
+    print("after render")
+
+    imageio.mimsave(path, rend, fps=15)
+
+def save_pc(point_cloud, path):
+    np.save(path, point_cloud)
 
 
 
