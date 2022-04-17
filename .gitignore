@@ -1,6 +1,7 @@
 .idea/
 sem_seg_h5/
 data/
+pt_to_mesh/outputs/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

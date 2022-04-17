@@ -4,23 +4,31 @@ from mesh_to_sdf import get_surface_point_cloud, BadMeshException
 from multiprocessing import Pool
 import trimesh
 import numpy as np
-DIRECTORY_MODELS = 'data/'
-MODEL_EXTENSION = '.npy'
-DIRECTORY_SDF = 'data/sdf/'
-VOXEL_RESOLUTION = 32
+USE_DEPTH_BUFFER = True
+
+from render_functions import render_voxel
+
+DATASET_NAME = 'chairs'
+# DIRECTORY_MODELS = '../data/6969/objs'
+# MODEL_EXTENSION = '.obj'
+DIRECTORY_VOXELS = '../data/{:s}/voxels_{{:d}}/'.format(DATASET_NAME)
+DIRECTORY_BAD_MESHES = '../data/{:s}/bad_meshes/'.format(DATASET_NAME)
+
+VOXEL_RESOLUTIONS = [8, 16, 32, 64]
 
 
-def get_model_files():
-    for directory, _, files in os.walk(DIRECTORY_MODELS):
-        for filename in files:
-            if filename.endswith(MODEL_EXTENSION):
-                yield os.path.join(directory, filename)
+# def get_model_files():
+#     for directory, _, files in os.walk(DIRECTORY_MODELS):
+#         for filename in files:
+#             if filename.endswith(MODEL_EXTENSION):
+#                 yield os.path.join(directory, filename)
 
-def get_npy_filename(model_filename, qualifier=''):
-    return DIRECTORY_SDF + model_filename[len(DIRECTORY_MODELS):-len(MODEL_EXTENSION)] + qualifier + '.npy'
+def get_hash(filename):
+    return filename.split('/')[-3]
 
-def get_voxel_filename(model_filename):
-    return get_npy_filename(model_filename, '-voxels-{:d}'.format(VOXEL_RESOLUTION))
+def get_voxel_filename(model_filename, resolution):
+    return os.path.join(DIRECTORY_VOXELS.format(resolution), get_hash(model_filename) + '.npy')
+
 def ensure_directory(directory):
     if not os.path.exists(directory):
         os.makedirs(directory)
@@ -32,16 +40,21 @@ def scale_to_unit_sphere(mesh):
     vertices /= np.max(distances)
     return trimesh.Trimesh(vertices=vertices, faces=mesh.faces)
 
-def process_model_file(mesh_new):
-    voxels_filename = get_voxel_filename("model_test")
+def process_model_file(mesh_new,filename):
+    # voxels_filename = get_voxel_filename("model_test")
     mymesh = scale_to_unit_sphere(mesh_new)
     surface_point_cloud = get_surface_point_cloud(mymesh)
+    voxel_filenames = [get_voxel_filename(filename, resolution) for resolution in VOXEL_RESOLUTIONS]
+    # if not all(os.path.exists(f) for f in voxel_filenames):
     try:
-        voxels = surface_point_cloud.get_voxels(voxel_resolution=VOXEL_RESOLUTION, use_depth_buffer=True)
-        print(voxels)
-        ensure_directory(os.path.dirname(voxels_filename))
-        np.save(voxels_filename, voxels)
+        for resolution in VOXEL_RESOLUTIONS:
+            voxels = surface_point_cloud.get_voxels(resolution, use_depth_buffer=USE_DEPTH_BUFFER,
+                                                    check_result=True)
+            print("voxel shape",voxels.shape)
+            # render_voxel(voxels, image_size=256, voxel_size=64, device=None,output_filename="images/pre_process.png")
+            np.save(get_voxel_filename(filename, resolution), voxels)
+            del voxels
     except BadMeshException:
         print()
-        tqdm.write("Skipping bad mesh. ({:s})".format(voxels_filename))
+        tqdm.write("Skipping bad mesh. ({:s})".format(voxel_filenames))
         return

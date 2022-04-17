@@ -7,7 +7,10 @@ import math
 import json
 import torch
 from pytorch3d.io import IO
-
+from pytorch3d.renderer import (
+    PerspectiveCameras,
+    look_at_view_transform
+)
 import numpy as np
 from PIL import Image
 
@@ -27,9 +30,9 @@ from pytorch3d.renderer import (
     PointsRasterizer,
     HardPhongShader,
 )
-
+import imageio
 import mcubes
-from prepare_dataset import process_model_file
+from pytorch3d.vis.plotly_vis import plot_scene
 
 
 def get_device():
@@ -70,6 +73,34 @@ def get_points_renderer(
     )
     return renderer
 
+
+# Spiral cameras looking at the origin
+def create_surround_cameras(radius, n_poses=20, up=(0.0, 1.0, 0.0), focal_length=1.0):
+    cameras = []
+
+    for theta in np.linspace(0, 2 * np.pi, n_poses + 1)[:-1]:
+
+        if np.abs(up[1]) > 0:
+            eye = [np.cos(theta + np.pi / 2) * radius, 1.0, -np.sin(theta + np.pi / 2) * radius]
+        else:
+            eye = [np.cos(theta + np.pi / 2) * radius, np.sin(theta + np.pi / 2) * radius, 2.0]
+
+        R, T = look_at_view_transform(
+            eye=(eye,),
+            at=([0.0, 0.0, 0.0],),
+            up=(up,),
+        )
+
+        cameras.append(
+            PerspectiveCameras(
+                focal_length=torch.tensor([focal_length])[None],
+                principal_point=torch.tensor([0.0, 0.0])[None],
+                R=R,
+                T=T,
+            )
+        )
+
+    return cameras
 
 def render_points(
     points,
@@ -184,9 +215,7 @@ def render_geometry(
     mesh_renderer = get_mesh_renderer(image_size=image_size[0], lights=lights, device=device)
 
     mesh = implicit_to_mesh(model.implicit_fn, scale=3, device=device, thresh=thresh)
-    print("TEST",flush=True)
 
-    process_model_file(mesh)
     all_images = []
     with torch.no_grad():
         torch.cuda.empty_cache()
@@ -203,3 +232,60 @@ def render_geometry(
                 )
 
     return all_images
+
+
+def render_voxel(voxels=None,image_size=256, voxel_size=64, device=None,output_filename="images/test_voxel.png" ):
+    if voxels is None:
+        voxels = np.load("../data/chairs/voxels_8/a4.npy")
+    if device is None:
+        device = get_device()
+    vertices, faces = mcubes.marching_cubes(mcubes.smooth(voxels), isovalue=0)
+    print("vec",vertices.shape)
+    print("faces",faces.shape)
+    vertices = torch.tensor(vertices).float()
+    faces = torch.tensor(faces.astype(int))
+    # Vertex coordinates are indexed by array position, so we need to
+    # renormalize the coordinate system.
+    # vertices = (vertices / voxel_size) * (max_value - min_value) + min_value
+    # textures = (vertices - vertices.min()) / (vertices.max() - vertices.min())
+    textures = pytorch3d.renderer.TexturesVertex(vertices.unsqueeze(0))
+    textures = torch.ones_like(vertices.unsqueeze(0))  # (1, N_v, 3)
+    textures = textures * torch.tensor([0.7,0.7,0.1])  # (1, N_v, 3)
+
+    mesh = pytorch3d.structures.Meshes([vertices], [faces], textures=pytorch3d.renderer.TexturesVertex(textures)).to(
+        device
+    )
+    cameras = create_surround_cameras(30.0, n_poses=20, up=(0.0, 1.0, 0.0), focal_length=2.0)
+    lights = pytorch3d.renderer.PointLights(location=[[0, 0, -3]], device=device)
+    mesh_renderer = get_mesh_renderer(image_size=image_size, lights=lights, device=device)
+
+    all_images = []
+    with torch.no_grad():
+        torch.cuda.empty_cache()
+        for cam_idx in range(len(cameras)):
+            image = mesh_renderer(mesh, cameras=cameras[cam_idx].to(device))
+            image = image[0,:,:,:3].detach().cpu().numpy()
+            all_images.append(image)
+    # lights = pytorch3d.renderer.PointLights(location=[[0, 0.0, -4.0]], device=device,)
+    # renderer = get_mesh_renderer(image_size=image_size, device=device)
+    # R, T = pytorch3d.renderer.look_at_view_transform(dist=3, elev=0, azim=180)
+    # cameras = pytorch3d.renderer.FoVPerspectiveCameras(R=R, T=T, device=device)
+
+    # fig = plot_scene({
+    #     "figure": {
+    #         "Mesh": mesh,
+    #         "Camera": cameras[0],
+    #         "Camera1": cameras[1],
+    #         "Camera2": cameras[2],
+    #         "Camera3": cameras[3],
+    #         "Camera4": cameras[4],
+    #         "Camera5": cameras[5],
+    #         "Camera6": cameras[6],
+    #         "Camera8": cameras[7],
+    #         "Camera9": cameras[8],
+    #
+    #     }
+    # })
+    # fig.show()
+
+    imageio.mimsave("images/testing_voxel.gif", [np.uint8(im * 255) for im in all_images])
