@@ -40,12 +40,18 @@ def scale_to_unit_sphere(mesh):
     return trimesh.Trimesh(vertices=vertices, faces=mesh.faces)
 
 def process_model_file(mesh_new,filename):
+<<<<<<< HEAD
     print(mesh_new.verts_list()[0] )
     if mesh_new.verts_list()[0].shape[0] == 0:
         print("Failed: Empty Mesh")
         return 
+=======
+    print("mesh")
+>>>>>>> 37aede2816e9136d00692ab07755e03b3830e9dc
     mymesh = scale_to_unit_sphere(mesh_new)
+    print("1")
     surface_point_cloud = get_surface_point_cloud(mymesh)
+    print("2")
     voxel_filenames = [get_voxel_filename(filename, resolution) for resolution in VOXEL_RESOLUTIONS]
     print(voxel_filenames)
     # if not all(os.path.exists(f) for f in voxel_filenames):
@@ -55,6 +61,7 @@ def process_model_file(mesh_new,filename):
             render_voxel(voxels, image_size=256, voxel_size=64, device=None,output_filename=f"images/pre_process_{resolution}.gif")
             np.save(get_voxel_filename(filename, resolution), voxels)
             del voxels
+<<<<<<< HEAD
     # except BadMeshException:
     #     print("Skipping bad mesh. ({:s})".format(voxel_filenames))
     #     tqdm.write("Skipping bad mesh. ({:s})".format(voxel_filenames))
@@ -63,3 +70,13 @@ def process_model_file(mesh_new,filename):
         print("process model file failed",e)
 
     del mymesh, surface_point_cloud
+=======
+    except BadMeshException:
+        print("Skipping bad mesh. ({:s})".format(voxel_filenames[0]))
+        tqdm.write("Skipping bad mesh. ({:s})".format(voxel_filenames[0]))
+        return
+    except Exception as e:
+        print("process model file failed",e)
+        print("TYPE",type(e))
+        exit(1)
+>>>>>>> 37aede2816e9136d00692ab07755e03b3830e9dc

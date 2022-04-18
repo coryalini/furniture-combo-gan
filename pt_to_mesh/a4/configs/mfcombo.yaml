@@ -20,7 +20,11 @@ sampler:
   max_depth:
 
 training:
+<<<<<<< HEAD
   num_epochs: 5001
+=======
+  num_epochs: 1001
+>>>>>>> 37aede2816e9136d00692ab07755e03b3830e9dc
   pretrain_iters: 250
   batch_size: 4096
   lr: 0.0001

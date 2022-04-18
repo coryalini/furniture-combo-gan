@@ -280,6 +280,7 @@ def train_points(
                 imageio.mimsave('images/part_2.gif', [np.uint8(im * 255) for im in test_images])
 
                 mesh = implicit_to_mesh(model.implicit_fn, scale=3, device="cuda", thresh=0.002)
+                print("mesh shape", mesh.verts_list()[0].shape)
                 trimmed_filename =filename[:-len(".npy")]
                 print("Input file",trimmed_filename)
                 # process_model_file(mesh,trimmed_filename)
@@ -293,7 +294,7 @@ def train_points(
             except Exception as e:
                 print("ERROR::::rendering/voxel failed",e)
                 # print("Empty mesh")
-
+                exit(1)
                 pass
 
 
