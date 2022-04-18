@@ -231,7 +231,7 @@ def train_points(
             distances, gradients = model.implicit_fn.get_distance_and_gradient(points)
             l1 = torch.nn.L1Loss()
             loss = l1(distances, torch.zeros_like(distances)) # TODO (Q2): Point cloud SDF loss on distances
-            point_loss = loss
+            point_loss = loss * cfg.training.inter_weight
 
             # Sample random points in bounding box
             eikonal_points = get_random_points(
@@ -282,13 +282,13 @@ def train_points(
                 mesh = implicit_to_mesh(model.implicit_fn, scale=3, device="cuda", thresh=0.002)
                 trimmed_filename =filename[:-len(".npy")]
                 print("Input file",trimmed_filename)
-                process_model_file(mesh,trimmed_filename)
+                # process_model_file(mesh,trimmed_filename)
                 print("process model finished")
                 # render_voxel(image_size=256, voxel_size=64, device=None,output_filename="images/post_process.png")
                 # print("Saving mesh to", cfg.data.point_cloud_path[:-len(".npy")] +".obj")
                 # # io.save(cfg.data.point_cloud_path[:-len(".npy")],mesh)
                 # # print(mesh.verts_list(), mesh.faces_list())
-                # io.save_obj(cfg.data.point_cloud_path[:-len(".npy")] +".obj",mesh.verts_list()[0], mesh.faces_list()[0])
+                io.save_obj("../data/chairs_v1/"+ trimmed_filename +".obj",mesh.verts_list()[0], mesh.faces_list()[0])
 
             except Exception as e:
                 print("ERROR::::rendering/voxel failed",e)
@@ -321,8 +321,8 @@ def pretrain_sdf(
         loss.backward()
         optimizer.step()
 
-DIRECTORY_DATA = '../data/combined_pc/'
-DIRECTORY_TRAINING = '../data/chairs/'
+DIRECTORY_DATA = '../data/combined_pc_tmp/'
+DIRECTORY_TRAINING = '../data/chairs_v1/'
 def run_training_for_data(cfg):
     files = os.listdir(DIRECTORY_DATA)
 
@@ -340,7 +340,7 @@ def run_training_for_data(cfg):
             '{:s}\n'.format(file)
             file1.write('{:s}\n'.format(file))
             file1.close()
-        # train_points(cfg,point_cloud, file)
+        train_points(cfg,point_cloud, file)
 #
 
 
@@ -358,6 +358,7 @@ def main(cfg: DictConfig):
 
 
 if __name__ == "__main__":
+    os.environ['PYOPENGL_PLATFORM'] = 'egl'
     main()
 
 

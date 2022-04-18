@@ -283,4 +283,3 @@ def render_voxel(voxels,image_size=256, voxel_size=64, device=None,output_filena
     # })
     # fig.show()
     imageio.mimsave(output_filename, [np.uint8(im * 255) for im in all_images])
-    print("red herring")

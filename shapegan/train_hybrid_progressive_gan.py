@@ -21,6 +21,8 @@ from util import create_text_slice
 from datasets import VoxelDataset
 from torch.utils.data import DataLoader
 
+import render_functions 
+
 def get_parameter(name, default):
     for arg in sys.argv:
         if arg.startswith(name + '='):
@@ -36,17 +38,17 @@ CONTINUE = "continue" in sys.argv
 FADE_IN_EPOCHS = 10
 BATCH_SIZE = 16
 GRADIENT_PENALTY_WEIGHT = 10
-NUMBER_OF_EPOCHS = int(get_parameter('epochs', 250))
+NUMBER_OF_EPOCHS = int(get_parameter('epochs', 251))
 
 VOXEL_RESOLUTION = RESOLUTIONS[ITERATION]
 print(VOXEL_RESOLUTION)
-dataset = VoxelDataset.from_split('../data/chairs/voxels_{:d}/{{:s}}.npy'.format(VOXEL_RESOLUTION), '../data/chairs/train.txt')
+dataset = VoxelDataset.from_split('../data/chairs_2/voxels_{:d}/{{:s}}.npy'.format(VOXEL_RESOLUTION), '../data/chairs_2/train.txt')
 data_loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=4)
 
 def get_generator_filename(iteration):
     return 'hybrid_progressive_gan_generator_{:d}.to'.format(iteration)
 
-generator = SDFNet(device='cpu')
+generator = SDFNet(device='cuda')
 discriminator = Discriminator()
 if not CONTINUE and ITERATION > 0:
     generator.filename = get_generator_filename(ITERATION - 1)
@@ -138,6 +140,10 @@ def train():
                     latent_codes = sample_latent_codes(current_batch_size)
                     fake_sample = generator_parallel(batch_grid_points, latent_codes)
                     fake_sample = fake_sample.reshape(-1, VOXEL_RESOLUTION, VOXEL_RESOLUTION, VOXEL_RESOLUTION)
+                    # print(fake_sample.shape)
+                    # save voxel 
+                    if epoch % 50 == 0:
+                        render_functions.render_voxel(fake_sample[0, :, :, :].squeeze().detach().cpu(), voxel_size=VOXEL_RESOLUTION, output_filename="data/"+str(epoch)+ "_" + str(VOXEL_RESOLUTION)+".gif")
                     if batch_index % 50 == 0 and show_viewer:
                         viewer.set_voxels(fake_sample[0, :, :, :].squeeze().detach().cpu().numpy())
                     if batch_index % 50 == 0 and "show_slice" in sys.argv:

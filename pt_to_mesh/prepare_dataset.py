@@ -8,7 +8,7 @@ USE_DEPTH_BUFFER = True
 
 from render_functions import render_voxel
 
-DATASET_NAME = 'chairs'
+DATASET_NAME = 'chairs_v1'
 # DIRECTORY_MODELS = '../data/6969/objs'
 # MODEL_EXTENSION = '.obj'
 DIRECTORY_VOXELS = '../data/{:s}/voxels_{{:d}}/'.format(DATASET_NAME)
@@ -40,6 +40,10 @@ def scale_to_unit_sphere(mesh):
     return trimesh.Trimesh(vertices=vertices, faces=mesh.faces)
 
 def process_model_file(mesh_new,filename):
+    print(mesh_new.verts_list()[0] )
+    if mesh_new.verts_list()[0].shape[0] == 0:
+        print("Failed: Empty Mesh")
+        return 
     mymesh = scale_to_unit_sphere(mesh_new)
     surface_point_cloud = get_surface_point_cloud(mymesh)
     voxel_filenames = [get_voxel_filename(filename, resolution) for resolution in VOXEL_RESOLUTIONS]
@@ -48,12 +52,14 @@ def process_model_file(mesh_new,filename):
     try:
         for resolution in VOXEL_RESOLUTIONS:
             voxels = surface_point_cloud.get_voxels(resolution, use_depth_buffer=USE_DEPTH_BUFFER,check_result=True)
-            render_voxel(voxels, image_size=256, voxel_size=64, device=None,output_filename="images/pre_process_{:d}.gif".format(resolution))
+            render_voxel(voxels, image_size=256, voxel_size=64, device=None,output_filename=f"images/pre_process_{resolution}.gif")
             np.save(get_voxel_filename(filename, resolution), voxels)
             del voxels
-    except BadMeshException:
-        print("Skipping bad mesh. ({:s})".format(voxel_filenames))
-        tqdm.write("Skipping bad mesh. ({:s})".format(voxel_filenames))
-        return
+    # except BadMeshException:
+    #     print("Skipping bad mesh. ({:s})".format(voxel_filenames))
+    #     tqdm.write("Skipping bad mesh. ({:s})".format(voxel_filenames))
+    #     return
     except Exception as e:
         print("process model file failed",e)
+
+    del mymesh, surface_point_cloud
