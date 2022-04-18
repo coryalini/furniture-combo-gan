@@ -40,6 +40,7 @@ NUMBER_OF_EPOCHS = int(get_parameter('epochs', 250))
 
 VOXEL_RESOLUTION = RESOLUTIONS[ITERATION]
 print(VOXEL_RESOLUTION)
+
 dataset = VoxelDataset.from_split('../data/chairs/voxels_{:d}/{{:s}}.npy'.format(VOXEL_RESOLUTION), '../data/chairs/train.txt')
 data_loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=4)
 

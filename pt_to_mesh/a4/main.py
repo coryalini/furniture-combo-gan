@@ -280,10 +280,9 @@ def train_points(
                 imageio.mimsave('images/part_2.gif', [np.uint8(im * 255) for im in test_images])
 
                 mesh = implicit_to_mesh(model.implicit_fn, scale=3, device="cuda", thresh=0.002)
-                print("mesh shape", mesh.verts_list()[0].shape)
-                trimmed_filename =filename[:-len(".npy")]
-                print("Input file",trimmed_filename)
+                trimmed_filename = filename[:-len(".npy")]
                 process_model_file(mesh,trimmed_filename)
+
                 print("process model finished")
                 # render_voxel(image_size=256, voxel_size=64, device=None,output_filename="images/post_process.png")
                 # print("Saving mesh to", cfg.data.point_cloud_path[:-len(".npy")] +".obj")
@@ -294,9 +293,9 @@ def train_points(
             except Exception as e:
                 print("ERROR::::rendering/voxel failed",e)
                 # print("Empty mesh")
-                exit(1)
+                return False
                 pass
-
+    return True
 
 def pretrain_sdf(
     cfg,
@@ -328,22 +327,26 @@ def run_training_for_data(cfg):
     files = os.listdir(DIRECTORY_DATA)
 
     for file in files:
-        print(file)
         point_cloud = np.load(DIRECTORY_DATA+file)
+
+        success = train_points(cfg,point_cloud, file)
+        if not success:
+            file1 = open(DIRECTORY_TRAINING + "failures.txt", "a")  # append mode
+            print('{:s}\n'.format(file))
+            file1.write('{:s}\n'.format(file[:-len(".npy")]))
+            file1.close()
+            continue
         prob = torch.randint(0, 10,(1,))
         if int(prob) <= 8:
             file1 = open(DIRECTORY_TRAINING + "train.txt", "a")  # append mode
             print('{:s}\n'.format(file))
-            file1.write('{:s}\n'.format(file))
+            file1.write('{:s}\n'.format(file[:-len(".npy")]))
             file1.close()
         else:
             file1 = open(DIRECTORY_TRAINING + "test.txt", "a")  # append mode
             '{:s}\n'.format(file)
-            file1.write('{:s}\n'.format(file))
+            file1.write('{:s}\n'.format(file[:-len(".npy")]))
             file1.close()
-        train_points(cfg,point_cloud, file)
-#
-
 
 @hydra.main(config_path='configs', config_name='torus')
 def main(cfg: DictConfig):

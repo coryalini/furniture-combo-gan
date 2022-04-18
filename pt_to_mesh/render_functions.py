@@ -248,7 +248,7 @@ def render_voxel(voxels,image_size=256, voxel_size=64, device=None,output_filena
     # renormalize the coordinate system.
     # vertices = (vertices / voxel_size) * (max_value - min_value) + min_value
     # textures = (vertices - vertices.min()) / (vertices.max() - vertices.min())
-    textures = pytorch3d.renderer.TexturesVertex(vertices.unsqueeze(0))
+    # textures = pytorch3d.renderer.TexturesVertex(vertices.unsqueeze(0))
     textures = torch.ones_like(vertices.unsqueeze(0))  # (1, N_v, 3)
     textures = textures * torch.tensor([0.7,0.7,0.1])  # (1, N_v, 3)
 
@@ -283,4 +283,3 @@ def render_voxel(voxels,image_size=256, voxel_size=64, device=None,output_filena
     # })
     # fig.show()
     imageio.mimsave(output_filename, [np.uint8(im * 255) for im in all_images])
-    print("red herring")

@@ -40,25 +40,23 @@ def scale_to_unit_sphere(mesh):
     return trimesh.Trimesh(vertices=vertices, faces=mesh.faces)
 
 def process_model_file(mesh_new,filename):
-    print("mesh")
     mymesh = scale_to_unit_sphere(mesh_new)
-    print("1")
     surface_point_cloud = get_surface_point_cloud(mymesh)
-    print("2")
     voxel_filenames = [get_voxel_filename(filename, resolution) for resolution in VOXEL_RESOLUTIONS]
     print(voxel_filenames)
     # if not all(os.path.exists(f) for f in voxel_filenames):
-    try:
-        for resolution in VOXEL_RESOLUTIONS:
-            voxels = surface_point_cloud.get_voxels(resolution, use_depth_buffer=USE_DEPTH_BUFFER,check_result=True)
-            render_voxel(voxels, image_size=256, voxel_size=64, device=None,output_filename=f"images/pre_process_{resolution}.gif")
-            np.save(get_voxel_filename(filename, resolution), voxels)
-            del voxels
-    except BadMeshException:
-        print("Skipping bad mesh. ({:s})".format(voxel_filenames[0]))
-        tqdm.write("Skipping bad mesh. ({:s})".format(voxel_filenames[0]))
-        return
-    except Exception as e:
-        print("process model file failed",e)
-        print("TYPE",type(e))
-        exit(1)
+    # try:
+    for resolution in VOXEL_RESOLUTIONS:
+        voxels = surface_point_cloud.get_voxels(resolution, use_depth_buffer=USE_DEPTH_BUFFER,check_result=True)
+        render_voxel(voxels, image_size=256, voxel_size=64, device=None,output_filename=f"images/pre_process_{resolution}.gif")
+        np.save(get_voxel_filename(filename, resolution), voxels)
+        del voxels
+    # except BadMeshException:
+    #     print("Skipping bad mesh. ({:s})".format(voxel_filenames[0]))
+    #     tqdm.write("Skipping bad mesh. ({:s})".format(voxel_filenames[0]))
+    #     return False
+    # except Exception as e:
+    #     print("process model file failed",e)
+    #     print("TYPE",type(e))
+    #     return False
+    # return True
