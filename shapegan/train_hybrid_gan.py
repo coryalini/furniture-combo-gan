@@ -53,7 +53,7 @@ if show_viewer:
 
 BATCH_SIZE = 8
 
-dataset = VoxelDataset.glob('data/chairs/voxels_32/**.npy')
+dataset = VoxelDataset.glob('../data/chairs/voxels_32/**.npy')
 dataset.rescale_sdf = False
 data_loader = DataLoader(dataset, shuffle=True, batch_size=BATCH_SIZE, num_workers=8)
 

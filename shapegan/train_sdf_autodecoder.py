@@ -76,7 +76,7 @@ def train():
         for batch in tqdm(list(create_batches())):
             indices = torch.tensor(batch, device = device)
             model_indices = indices / POINTCLOUD_SIZE
-
+            print(model_indices)
             batch_latent_codes = latent_codes[model_indices, :]
             batch_points = points[indices, :]
             batch_sdf = sdf[indices]
