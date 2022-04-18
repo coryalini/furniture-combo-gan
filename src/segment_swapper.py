@@ -174,7 +174,7 @@ def get_sub_pc(id, base_partnet_path, obj_name):
     return new_pc, ids
 
 obj_name_1 = "Chair"
-obj_name_2 = "Bowl"
+obj_name_2 = "Table"
 train_1, val_1 = get_splits(obj_name_1, base_filepath)
 train_2, val_2 = get_splits(obj_name_2, base_filepath)
 
@@ -190,22 +190,23 @@ if len(train_1) > len(train_2):
     train = train_2
 
 for i, t in enumerate(train): 
-    if i > 10:
-        break
+    # if i > 4:
+    #     break
     id_1 = train_1[i]['anno_id']
     id_2 = train_2[i]['anno_id']
-    
+
+    # print(id_1, id_2)
+
     pc_1, name_1 = get_sub_pc(id_1, base_partnet_path, obj_name_1)
-    # pc_2, name_2 = get_sub_pc(id_2, base_partnet_path, obj_name_2)
+    pc_2, name_2 = get_sub_pc(id_2, base_partnet_path, obj_name_2)
     new_pc = torch.from_numpy(pc_1)
-    name_2 = ""
-    # if len(pc_1) == 0 and len(pc_2) > 0:
-    #     new_pc = torch.from_numpy(pc_2)
-    # elif len(pc_1) > 0 and len(pc_2) == 0:
-    #     new_pc = torch.from_numpy(pc_1)
-    # elif len(pc_1) > 0 and len(pc_2) > 0:
-    #     new_pc = torch.from_numpy(np.concatenate([pc_1, pc_2], axis=0))
-    # else:
+    if len(pc_1) == 0 and len(pc_2) > 0:
+        new_pc = torch.from_numpy(pc_2)
+    elif len(pc_1) > 0 and len(pc_2) == 0:
+        new_pc = torch.from_numpy(pc_1)
+    elif len(pc_1) > 0 and len(pc_2) > 0:
+        new_pc = torch.from_numpy(np.concatenate([pc_1, pc_2], axis=0))
+    else:
     #     continue
     utils.viz_point_cloud(new_pc, "../data/combined_images_test/"+ name_1 + "_" + name_2 +".gif", "cuda", new_pc.shape[0])
     np.save("../data/combined_pc_test/"+ name_1 + "_" + name_2 +".npy", new_pc)
