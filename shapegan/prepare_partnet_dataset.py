@@ -8,7 +8,9 @@ from util import ensure_directory
 from multiprocessing import Pool
 import traceback
 from mesh_to_sdf import get_surface_point_cloud,scale_to_unit_cube, scale_to_unit_sphere, BadMeshException
-
+from render_functions import render_voxel
+import pymeshfix
+import torch
 DATASET_NAME = 'chairs'
 DIRECTORY_MODELS = '../data/6969/objs'
 MODEL_EXTENSION = '.obj'
@@ -100,6 +102,9 @@ def process_model_file(filename):
             try:
                 for resolution in VOXEL_RESOLUTIONS:
                     voxels = surface_point_cloud.get_voxels(resolution, use_depth_buffer=USE_DEPTH_BUFFER, check_result=True)
+                    render_voxel(voxels, image_size=256, voxel_size=64, device=None,
+                                 output_filename=f"images/ORIGINAL_chair_{resolution}_{int(torch.randint(1,10,(1,)))}.gif")
+
                     np.save(get_voxel_filename(filename, resolution), voxels)
                     del voxels
             
@@ -139,8 +144,9 @@ def process_model_file(filename):
     except:
         traceback.print_exc()
 
-
 def process_model_files():
+
+
     for res in VOXEL_RESOLUTIONS:
         ensure_directory(DIRECTORY_VOXELS.format(res))
     if CREATE_UNIFORM_AND_SURFACE:
@@ -149,21 +155,35 @@ def process_model_files():
     if CREATE_SDF_CLOUDS:
         ensure_directory(DIRECTORY_SDF_CLOUD)
     ensure_directory(DIRECTORY_BAD_MESHES)
-
     files = list(get_model_files())
-
-    worker_count = os.cpu_count() // 2
-    print("Using {:d} processes.".format(worker_count))
-    pool = Pool(worker_count)
-
-    progress = tqdm(total=len(files))
-    def on_complete(*_):
-        progress.update()
-
     for filename in files:
-        pool.apply_async(process_model_file, args=(filename,), callback=on_complete)
-    pool.close()
-    pool.join()
+        process_model_file(filename),
+
+#
+# def process_model_files():
+#     for res in VOXEL_RESOLUTIONS:
+#         ensure_directory(DIRECTORY_VOXELS.format(res))
+#     if CREATE_UNIFORM_AND_SURFACE:
+#         ensure_directory(DIRECTORY_UNIFORM)
+#         ensure_directory(DIRECTORY_SURFACE)
+#     if CREATE_SDF_CLOUDS:
+#         ensure_directory(DIRECTORY_SDF_CLOUD)
+#     ensure_directory(DIRECTORY_BAD_MESHES)
+#
+#     files = list(get_model_files())
+#
+#     worker_count = os.cpu_count() // 2
+#     print("Using {:d} processes.".format(worker_count))
+#     pool = Pool(worker_count)
+#
+#     progress = tqdm(total=len(files))
+#     def on_complete(*_):
+#         progress.update()
+#
+#     for filename in files:
+#         pool.apply_async(process_model_file, args=(filename,), callback=on_complete)
+#     pool.close()
+#     pool.join()
 
 def combine_sdf_clouds():
     import torch

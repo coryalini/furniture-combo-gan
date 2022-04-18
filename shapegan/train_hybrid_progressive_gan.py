@@ -41,13 +41,13 @@ NUMBER_OF_EPOCHS = int(get_parameter('epochs', 250))
 VOXEL_RESOLUTION = RESOLUTIONS[ITERATION]
 print(VOXEL_RESOLUTION)
 
-dataset = VoxelDataset.from_split('../data/chairs/voxels_{:d}/{{:s}}.npy'.format(VOXEL_RESOLUTION), '../data/chairs/train.txt')
+dataset = VoxelDataset.from_split('../data/chairs_v2/voxels_{:d}/{{:s}}.npy'.format(VOXEL_RESOLUTION), '../data/chairs_v2/train.txt')
 data_loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=4)
 
 def get_generator_filename(iteration):
     return 'hybrid_progressive_gan_generator_{:d}.to'.format(iteration)
 
-generator = SDFNet(device='cpu')
+generator = SDFNet(device='cuda')
 discriminator = Discriminator()
 if not CONTINUE and ITERATION > 0:
     generator.filename = get_generator_filename(ITERATION - 1)

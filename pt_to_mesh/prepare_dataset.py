@@ -8,7 +8,7 @@ USE_DEPTH_BUFFER = True
 
 from render_functions import render_voxel
 
-DATASET_NAME = 'chairs'
+DATASET_NAME = 'chairs_v2'
 # DIRECTORY_MODELS = '../data/6969/objs'
 # MODEL_EXTENSION = '.obj'
 DIRECTORY_VOXELS = '../data/{:s}/voxels_{{:d}}/'.format(DATASET_NAME)
@@ -16,7 +16,7 @@ DIRECTORY_BAD_MESHES = '../data/{:s}/bad_meshes/'.format(DATASET_NAME)
 
 VOXEL_RESOLUTIONS = [8, 16, 32, 64]
 
-
+import pymeshfix
 def get_hash(filename):
     return filename.split('/')[-3]
 #
@@ -33,13 +33,22 @@ def ensure_directory(directory):
         os.makedirs(directory)
 
 def scale_to_unit_sphere(mesh):
-    mesh = trimesh.Trimesh(vertices=mesh.verts_list()[0].detach().cpu(), faces=mesh.faces_list()[0].detach().cpu())
+    # mesh = trimesh.Trimesh(vertices=mesh.verts_list()[0].detach().cpu(), faces=mesh.faces_list()[0].detach().cpu())
     vertices = mesh.vertices - mesh.bounding_box.centroid
     distances = np.linalg.norm(vertices, axis=1)
     vertices /= np.max(distances)
     return trimesh.Trimesh(vertices=vertices, faces=mesh.faces)
+def repair_mesh(mesh):
+    meshfix = pymeshfix.MeshFix(mesh.verts_list()[0].detach().cpu().numpy(),
+                                mesh.faces_list()[0].detach().cpu().numpy())
+    # meshfix.plot()
+    meshfix.repair(verbose=True)
+    # meshfix.plot()
+    mesh = trimesh.Trimesh(vertices=meshfix.points(), faces=meshfix.faces())
+    return mesh
 
 def process_model_file(mesh_new,filename):
+    mesh_new = repair_mesh(mesh_new)
     mymesh = scale_to_unit_sphere(mesh_new)
     surface_point_cloud = get_surface_point_cloud(mymesh)
     voxel_filenames = [get_voxel_filename(filename, resolution) for resolution in VOXEL_RESOLUTIONS]

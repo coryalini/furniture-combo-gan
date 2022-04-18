@@ -300,3 +300,54 @@ def render_partnet_bullshit(points,
     imageio.mimsave(filename, [np.uint8(im * 255) for im in all_images])
 
     return all_images
+
+
+def render_voxel(voxels,image_size=256, voxel_size=64, device=None,output_filename="images/test_voxel.gif" ):
+    # if voxels is None:
+    #     voxels = np.load("../data/chairs/voxels_8/a4.npy")
+    if device is None:
+        device = get_device()
+    vertices, faces = mcubes.marching_cubes(mcubes.smooth(voxels), isovalue=0)
+    print("vec",vertices.shape)
+    print("faces",faces.shape)
+    vertices = torch.tensor(vertices).float()
+    faces = torch.tensor(faces.astype(int))
+    # Vertex coordinates are indexed by array position, so we need to
+    # renormalize the coordinate system.
+    # vertices = (vertices / voxel_size) * (max_value - min_value) + min_value
+    # textures = (vertices - vertices.min()) / (vertices.max() - vertices.min())
+    # textures = pytorch3d.renderer.TexturesVertex(vertices.unsqueeze(0))
+    textures = torch.ones_like(vertices.unsqueeze(0))  # (1, N_v, 3)
+    textures = textures * torch.tensor([0.7,0.7,0.1])  # (1, N_v, 3)
+
+    mesh = pytorch3d.structures.Meshes([vertices], [faces], textures=pytorch3d.renderer.TexturesVertex(textures)).to(
+        device
+    )
+    cameras = create_surround_cameras(30.0, n_poses=20, up=(0.0, 3.0, 0.0), focal_length=2.0)
+    lights = pytorch3d.renderer.PointLights(location=[[0, 0, -3]], device=device)
+    mesh_renderer = get_mesh_renderer(image_size=image_size, lights=lights, device=device)
+
+    all_images = []
+    with torch.no_grad():
+        torch.cuda.empty_cache()
+        for cam_idx in range(len(cameras)):
+            image = mesh_renderer(mesh, cameras=cameras[cam_idx].to(device))
+            image = image[0,:,:,:3].detach().cpu().numpy()
+            all_images.append(image)
+    # fig = plot_scene({
+    #     "figure": {
+    #         "Mesh": mesh,
+    #         "Camera": cameras[0],
+    #         "Camera1": cameras[1],
+    #         "Camera2": cameras[2],
+    #         "Camera3": cameras[3],
+    #         "Camera4": cameras[4],
+    #         "Camera5": cameras[5],
+    #         "Camera6": cameras[6],
+    #         "Camera8": cameras[7],
+    #         "Camera9": cameras[8],
+    #
+    #     }
+    # })
+    # fig.show()
+    imageio.mimsave(output_filename, [np.uint8(im * 255) for im in all_images])

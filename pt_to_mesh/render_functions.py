@@ -255,7 +255,7 @@ def render_voxel(voxels,image_size=256, voxel_size=64, device=None,output_filena
     mesh = pytorch3d.structures.Meshes([vertices], [faces], textures=pytorch3d.renderer.TexturesVertex(textures)).to(
         device
     )
-    cameras = create_surround_cameras(30.0, n_poses=20, up=(0.0, 2.0, 0.0), focal_length=2.0)
+    cameras = create_surround_cameras(40.0, n_poses=20, up=(0.0, 1.0, 0.0), focal_length=2.0)
     lights = pytorch3d.renderer.PointLights(location=[[0, 0, -3]], device=device)
     mesh_renderer = get_mesh_renderer(image_size=image_size, lights=lights, device=device)
 

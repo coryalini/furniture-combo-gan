@@ -294,7 +294,6 @@ def train_points(
                 print("ERROR::::rendering/voxel failed",e)
                 # print("Empty mesh")
                 return False
-                pass
     return True
 
 def pretrain_sdf(
@@ -322,7 +321,7 @@ def pretrain_sdf(
         optimizer.step()
 
 DIRECTORY_DATA = '../data/combined_pc/'
-DIRECTORY_TRAINING = '../data/chairs/'
+DIRECTORY_TRAINING = '../data/chairs_v2/'
 def run_training_for_data(cfg):
     files = os.listdir(DIRECTORY_DATA)
 
@@ -330,14 +329,16 @@ def run_training_for_data(cfg):
         point_cloud = np.load(DIRECTORY_DATA+file)
 
         success = train_points(cfg,point_cloud, file)
+        print("Success", success)
+        prob = torch.randint(0, 10, (1,))
         if not success:
+            print(DIRECTORY_TRAINING + "failures.txt")
             file1 = open(DIRECTORY_TRAINING + "failures.txt", "a")  # append mode
             print('{:s}\n'.format(file))
             file1.write('{:s}\n'.format(file[:-len(".npy")]))
             file1.close()
             continue
-        prob = torch.randint(0, 10,(1,))
-        if int(prob) <= 8:
+        elif int(prob) <= 8:
             file1 = open(DIRECTORY_TRAINING + "train.txt", "a")  # append mode
             print('{:s}\n'.format(file))
             file1.write('{:s}\n'.format(file[:-len(".npy")]))
