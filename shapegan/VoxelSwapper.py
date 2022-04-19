@@ -21,7 +21,8 @@ class VoxelSwapper:
             validity["table"] = "invalid"
 
         tmp_voxel = table_voxel
-        tmp_voxel[0:int(res/2),:,:] = chair_voxel[0:int(res/2),:,:]
+        # tmp_voxel[0:int(res/2),:,:] = torch.min(chair_voxel[0:int(res/2),:,:],table_voxel[0:int(res/2),:,:])
+        tmp_voxel = torch.min(torch.Tensor(chair_voxel),torch.Tensor(table_voxel))
 
         return tmp_voxel, validity
 

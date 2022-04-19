@@ -157,7 +157,7 @@ class PrepareShapeGanDataset():
                         render_voxel(new_voxel, image_size=256, voxel_size=res, device=None,
                                      output_filename=f"images/ORIGINAL_chair_table_{res}_{int(torch.randint(1,100,(1,)))}.gif")
 
-                        np.save(DIRECTORY_VOXELS_combined + "TABLE_"+str(t)+"_CHAIR_"+str(c)+"npy", new_voxel)
+                        np.save(DIRECTORY_VOXELS_combined + "TABLE_"+str(t)+"_CHAIR_"+str(c)+".npy", new_voxel)
 
 
 if __name__ == '__main__':

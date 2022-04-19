@@ -20,6 +20,7 @@ SDF_CLIPPING = 0.1
 from util import create_text_slice
 from datasets import VoxelDataset
 from torch.utils.data import DataLoader
+import render_functions
 
 
 def get_parameter(name, default):
@@ -41,6 +42,7 @@ NUMBER_OF_EPOCHS = int(get_parameter('epochs', 250))
 my_resolutions = [32,64]
 VOXEL_RESOLUTION = my_resolutions[ITERATION]
 print(VOXEL_RESOLUTION)
+OUTPUT_FREQ = 3
 
 dataset = VoxelDataset.from_split('../data/chair_table_combinations/voxels_{:d}/{{:s}}.npy'.format(VOXEL_RESOLUTION),
                                   '../data/chair_table_combinations/train.txt')
@@ -152,9 +154,14 @@ def train():
                     latent_codes = sample_latent_codes(current_batch_size)
                     fake_sample = generator_parallel(batch_grid_points, latent_codes)
                     fake_sample = fake_sample.reshape(-1, VOXEL_RESOLUTION, VOXEL_RESOLUTION, VOXEL_RESOLUTION)
-                    if batch_index % 50 == 0 and show_viewer:
+                    if epoch % OUTPUT_FREQ == 0:
+                        try:
+                            render_functions.render_voxel(fake_sample[0, :, :, :].squeeze().detach().cpu(), voxel_size=VOXEL_RESOLUTION, output_filename="data/"+str(epoch)+ "_" + str(VOXEL_RESOLUTION)+".gif")
+                        except:
+                            print("mesh bad skip")
+                    if batch_index % OUTPUT_FREQ == 0 and show_viewer:
                         viewer.set_voxels(fake_sample[0, :, :, :].squeeze().detach().cpu().numpy())
-                    if batch_index % 50 == 0 and "show_slice" in sys.argv:
+                    if batch_index % OUTPUT_FREQ == 0 and "show_slice" in sys.argv:
                         tqdm.write(create_text_slice(fake_sample[0, :, :, :] / SDF_CLIPPING))
 
                     fake_discriminator_output = discriminator_parallel(fake_sample)
