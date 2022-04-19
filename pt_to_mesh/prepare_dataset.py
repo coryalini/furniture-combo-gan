@@ -57,7 +57,7 @@ def process_model_file(mesh_new,filename):
     # try:
     for resolution in VOXEL_RESOLUTIONS:
         voxels = surface_point_cloud.get_voxels(resolution, use_depth_buffer=USE_DEPTH_BUFFER,check_result=True)
-        render_voxel(voxels, image_size=256, voxel_size=64, device=None,output_filename=f"images/pre_process_{resolution}.gif")
+        render_voxel(voxels, image_size=256, voxel_size=resolution, device=None,output_filename=f"images/pre_process_{resolution}.gif")
         np.save(get_voxel_filename(filename, resolution), voxels)
         del voxels
     # except BadMeshException:
