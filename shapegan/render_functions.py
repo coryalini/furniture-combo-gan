@@ -193,9 +193,8 @@ def render_geometry(
     
     return all_images
 
-
 # Spiral cameras looking at the origin
-def create_surround_cameras(radius, n_poses=20, up=(0.0, 1.0, 0.0), focal_length=1.0):
+def create_surround_cameras(radius, n_poses=20, up=(0.0, 1.0, 0.0), focal_length=1.0, at=None):
     cameras = []
 
     for theta in np.linspace(0, 2 * np.pi, n_poses + 1)[:-1]:
@@ -204,10 +203,11 @@ def create_surround_cameras(radius, n_poses=20, up=(0.0, 1.0, 0.0), focal_length
             eye = [np.cos(theta + np.pi / 2) * radius, 1.0, -np.sin(theta + np.pi / 2) * radius]
         else:
             eye = [np.cos(theta + np.pi / 2) * radius, np.sin(theta + np.pi / 2) * radius, 2.0]
-
+        if at is None:
+            at =[0.0, 0.0, 0.0]
         R, T = look_at_view_transform(
             eye=(eye,),
-            at=([0.0, 0.0, 0.0],),
+            at=(at,),
             up=(up,),
         )
 
@@ -221,8 +221,6 @@ def create_surround_cameras(radius, n_poses=20, up=(0.0, 1.0, 0.0), focal_length
         )
 
     return cameras
-
-
 def render_mesh(
         mesh,
         image_size=256,
