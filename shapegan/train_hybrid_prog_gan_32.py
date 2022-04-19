@@ -42,8 +42,8 @@ my_resolutions = [32,64]
 VOXEL_RESOLUTION = my_resolutions[ITERATION]
 print(VOXEL_RESOLUTION)
 
-dataset = VoxelDataset.from_split('../data/chairs_v2/voxels_{:d}/{{:s}}.npy'.format(VOXEL_RESOLUTION),
-                                  '../data/chairs_v2/train.txt')
+dataset = VoxelDataset.from_split('../data/chair_table_combinations/voxels_{:d}/{{:s}}.npy'.format(VOXEL_RESOLUTION),
+                                  '../data/chair_table_combinations/train.txt')
 data_loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=4)
 
 
