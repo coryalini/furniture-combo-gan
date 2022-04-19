@@ -318,12 +318,18 @@ def render_voxel(voxels,image_size=256, voxel_size=64, device=None,output_filena
     # textures = (vertices - vertices.min()) / (vertices.max() - vertices.min())
     # textures = pytorch3d.renderer.TexturesVertex(vertices.unsqueeze(0))
     textures = torch.ones_like(vertices.unsqueeze(0))  # (1, N_v, 3)
-    textures = textures * torch.tensor([0.7,0.7,0.1])  # (1, N_v, 3)
+    textures = textures * torch.tensor([0.0,0.0,0.1])  # (1, N_v, 3)
 
     mesh = pytorch3d.structures.Meshes([vertices], [faces], textures=pytorch3d.renderer.TexturesVertex(textures)).to(
         device
     )
-    cameras = create_surround_cameras(30.0, n_poses=20, up=(0.0, 3.0, 0.0), focal_length=2.0)
+    if voxel_size == 64:
+        cameras = create_surround_cameras(voxel_size*2, n_poses=20, up=(0.0, 1.0, 0.0), focal_length=2.0, at=[32.0, 32.0, 16.0])
+    elif voxel_size == 32:
+        cameras = create_surround_cameras(voxel_size*2, n_poses=20, up=(0.0, 1.0, 0.0), focal_length=2.0, at=[16.0, 10.0, 16.0])
+    else:
+        cameras = create_surround_cameras(voxel_size*2, n_poses=20, up=(0.0, 1.0, 0.0), focal_length=2.0, at=[0.0, 0.0, 0.0])
+
     lights = pytorch3d.renderer.PointLights(location=[[0, 0, -3]], device=device)
     mesh_renderer = get_mesh_renderer(image_size=image_size, lights=lights, device=device)
 
