@@ -19,6 +19,7 @@ from pytorch3d.renderer import (
     PointsRasterizer,
     HardPhongShader,
 )
+from mesh_to_sdf import BadMeshException
 
 import mcubes
 
@@ -308,8 +309,11 @@ def render_voxel(voxels,image_size=256, voxel_size=64, device=None,output_filena
     vertices, faces = mcubes.marching_cubes(mcubes.smooth(voxels), isovalue=0)
     print("vec",vertices.shape)
     print("faces",faces.shape)
+
     vertices = torch.tensor(vertices).float()
     faces = torch.tensor(faces.astype(int))
+    if vertices.shape[0] == 0:
+        raise BadMeshException
     # Vertex coordinates are indexed by array position, so we need to
     # renormalize the coordinate system.
     # vertices = (vertices / voxel_size) * (max_value - min_value) + min_value

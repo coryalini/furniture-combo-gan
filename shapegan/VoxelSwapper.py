@@ -1,6 +1,7 @@
 
 import pytorch3d
 import torch
+import mcubes
 
 class VoxelSwapper:
 
@@ -8,30 +9,30 @@ class VoxelSwapper:
         pass
 
 
-    def swap_voxel_vertical(self, chair_voxel, table_voxel):
+    def swap_voxel_vertical(self, chair_voxel, table_voxel, res):
 
         validity = {"chair":"valid", "table":"valid"}
-        mesh, faces = pytorch3d.marching_cubes(chair_voxel)
+        vertices, faces = mcubes.marching_cubes(mcubes.smooth(table_voxel), isovalue=0)
 
-        if mesh.shape[0] == 0:
-            validity["chair"] = "invlid"
+        if vertices.shape[0] == 0:
+            validity["chair"] = "invalid"
+        vertices, faces = mcubes.marching_cubes(mcubes.smooth(table_voxel), isovalue=0)
+        if vertices.shape[0] == 0:
+            validity["table"] = "invalid"
 
-        mesh, faces = pytorch3d.marching_cubes(table_voxel)
-        if mesh.shape[0] == 0:
-            validity["table"] = "invlid"
-
-        tmp_voxel = chair_voxel
-        tmp_voxel[0:4,:,:] = table_voxel[0:4,:,:]
+        tmp_voxel = table_voxel
+        tmp_voxel[0:int(res/2),:,:] = chair_voxel[0:int(res/2),:,:]
 
         return tmp_voxel, validity
 
-    
-vox = VoxelSwapper()
-chair_voxel = torch.randint(512, (8, 8, 8))
-table_voxel = torch.randint(512, (8, 8, 8))
 
-new_vox, validity = vox.swap_voxel_vertical(chair_voxel, table_voxel)
-
-print(new_vox)
-print(validity)
+# vox = VoxelSwapper()
+# chair_voxel = torch.randint(8, (2, 2, 2))
+# table_voxel = torch.randint(8, (2, 2, 2))
+# print(chair_voxel)
+# print(table_voxel)
+# new_vox, validity = vox.swap_voxel_vertical(chair_voxel, table_voxel)
+#
+# print(new_vox)
+# print(validity)
 

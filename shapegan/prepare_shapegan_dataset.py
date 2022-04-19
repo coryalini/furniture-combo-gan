@@ -15,7 +15,7 @@ from render_functions import render_voxel
 # Voxel resolutions to create.
 # Set to [] if no voxels are needed.
 # Set to [32] for for all models except for the progressively growing DeepSDF/Voxel GAN
-VOXEL_RESOLUTIONS = [8, 16, 32, 64]
+# VOXEL_RESOLUTIONS = [8, 16, 32, 64]
 # Options for virtual scans used to generate SDFs
 USE_DEPTH_BUFFER = True
 SCAN_COUNT = 50
@@ -24,16 +24,17 @@ class PrepareShapeGanDataset():
     # Voxel resolutions to create.
     # Set to [] if no voxels are needed.
     # Set to [32] for for all models except for the progressively growing DeepSDF/Voxel GAN
-    VOXEL_RESOLUTIONS = [8, 16, 32, 64]
+    # VOXEL_RESOLUTIONS = [8, 16, 32, 64]
+    VOXEL_RESOLUTIONS = [16, 32, 64]
     # Options for virtual scans used to generate SDFs
     USE_DEPTH_BUFFER = True
     SCAN_COUNT = 50
     SCAN_RESOLUTION = 1024
     DATASET_NAME = 'chair_table_combinations'
-    DIRECTORY_MODELS = 'data/shapenet/03001627'
+    DIRECTORY_MODELS = '../data/shapenet/03001627'
     MODEL_EXTENSION = '.obj'
-    DIRECTORY_VOXELS = 'data/{:s}/voxels_{{:d}}/'.format(DATASET_NAME)
-    DIRECTORY_BAD_MESHES = 'data/{:s}/bad_meshes/'.format(DATASET_NAME)
+    DIRECTORY_VOXELS = '../data/{:s}/voxels_{{:d}}/'.format(DATASET_NAME)
+    DIRECTORY_BAD_MESHES = '../data/{:s}/bad_meshes/'.format(DATASET_NAME)
     base_path = '../data/part_objs/'
 
     def __init__(self):
@@ -49,7 +50,6 @@ class PrepareShapeGanDataset():
     def get_hash(self,filename):
         return filename.split('/')[-3]
 
-
     def get_voxel_filename(self,model_filename, resolution):
         return os.path.join(self.DIRECTORY_VOXELS.format(resolution), self.get_hash(model_filename) + '.npy')
 
@@ -59,10 +59,11 @@ class PrepareShapeGanDataset():
 
     def mark_bad_mesh(self,model_filename):
         filename = self.get_bad_mesh_filename(model_filename)
-        print("bad",filename)
         ensure_directory(os.path.dirname(filename))
         open(filename, 'w').close()
 
+    def is_bad_mesh_corinne(self, model_filename):
+        return os.path.exists(os.path.join(self.DIRECTORY_BAD_MESHES, model_filename))
 
     def is_bad_mesh(self,model_filename):
         return os.path.exists(self.get_bad_mesh_filename(model_filename))
@@ -74,15 +75,17 @@ class PrepareShapeGanDataset():
 
             mesh = trimesh.load(filename)
 
-            voxel_filenames = [self.get_voxel_filename(filename, resolution) for resolution in VOXEL_RESOLUTIONS]
+            voxel_filenames = [self.get_voxel_filename(filename, resolution) for resolution in self.VOXEL_RESOLUTIONS]
             if not all(os.path.exists(f) for f in voxel_filenames):
                 mesh_unit_cube = scale_to_unit_cube(mesh)
                 surface_point_cloud = get_surface_point_cloud(mesh_unit_cube, bounding_radius=3 ** 0.5,
                                                               scan_count=SCAN_COUNT, scan_resolution=SCAN_RESOLUTION)
                 try:
-                    for resolution in VOXEL_RESOLUTIONS:
+                    for resolution in self.VOXEL_RESOLUTIONS:
                         voxels = surface_point_cloud.get_voxels(resolution, use_depth_buffer=USE_DEPTH_BUFFER,
                                                                 check_result=True)
+                        render_voxel(voxels, image_size=256, voxel_size=resolution, device=None,
+                                     output_filename=f"images/ORIGINAL_{self.DATASET_NAME}_{resolution}_{int(torch.randint(1, 100, (1,)))}.gif")
                         np.save(self.get_voxel_filename(filename, resolution), voxels)
                         del voxels
 
@@ -97,7 +100,7 @@ class PrepareShapeGanDataset():
 
 
     def process_model_files(self):
-        for res in VOXEL_RESOLUTIONS:
+        for res in self.VOXEL_RESOLUTIONS:
             ensure_directory(self.DIRECTORY_VOXELS.format(res))
         ensure_directory(self.DIRECTORY_BAD_MESHES)
 
@@ -114,7 +117,7 @@ class PrepareShapeGanDataset():
         return ids
     def process_one_type(self, obj_type, type_ids):
         self.DATASET_NAME = obj_type
-        self.DIRECTORY_BAD_MESHES = 'data/{:s}/bad_meshes/'.format(self.DATASET_NAME)
+        self.DIRECTORY_BAD_MESHES = '../data/{:s}/bad_meshes/'.format(self.DATASET_NAME)
         self.DIRECTORY_VOXELS = '../data/{:s}/voxels_{{:d}}/'.format(self.DATASET_NAME, self.VOXEL_RESOLUTIONS)
 
         for i in range(len(type_ids)):
@@ -129,28 +132,32 @@ class PrepareShapeGanDataset():
         self.process_one_type("chair", chair_ids)
         self.process_one_type("table", table_ids)
         voxel_swapper = VoxelSwapper.VoxelSwapper()
-        for res in VOXEL_RESOLUTIONS:
+        for res in self.VOXEL_RESOLUTIONS:
             DIRECTORY_VOXELS_chairs = f'../data/chair/voxels_{res}/'
             DIRECTORY_VOXELS_tables = f'../data/table/voxels_{res}/'
-            DIRECTORY_VOXELS_combined = f'../data/combined/voxels_{res}/'
-
+            DIRECTORY_VOXELS_combined = f'../data/chair_table_combinations/voxels_{res}/'
+            ensure_directory(DIRECTORY_VOXELS_combined)
 
             for t in table_ids:
-                if self.is_bad_mesh(DIRECTORY_VOXELS_tables+t+".npy"):
-                    continue
-                table_voxel = np.load(DIRECTORY_VOXELS_tables+t+".npy")
-                print(table_voxel)
-                for c in chair_ids:
-                    if self.is_bad_mesh(DIRECTORY_VOXELS_chairs + c + ".npy"):
-                        continue
-                    chair_voxel = np.load(DIRECTORY_VOXELS_chairs + c + ".npy")
-                    print(chair_voxel)
-                    new_voxel = voxel_swapper.swap_voxel_vertical(chair_voxel, table_voxel)
-                    print(new_voxel.shape)
-                    render_voxel(new_voxel, image_size=256, voxel_size=res, device=None,
-                                 output_filename=f"images/ORIGINAL_chair_table_{res}_{int(torch.randint(1,100,(1,)))}.gif")
+                self.DIRECTORY_BAD_MESHES = '../data/table/bad_meshes/'
 
-                    np.save(DIRECTORY_VOXELS_combined + "table"+str(t)+"chair"+str(c)+"npy", new_voxel)
+                if self.is_bad_mesh_corinne(t):
+                    continue
+                print(t)
+                table_voxel = np.load(DIRECTORY_VOXELS_tables+t+".npy")
+                for c in chair_ids:
+                    self.DIRECTORY_BAD_MESHES = '../data/chair/bad_meshes/'
+
+                    if self.is_bad_mesh_corinne(c):
+                        continue
+                    print(c)
+                    chair_voxel = np.load(DIRECTORY_VOXELS_chairs + c + ".npy")
+                    new_voxel, valid = voxel_swapper.swap_voxel_vertical(chair_voxel, table_voxel, res)
+                    if valid:
+                        render_voxel(new_voxel, image_size=256, voxel_size=res, device=None,
+                                     output_filename=f"images/ORIGINAL_chair_table_{res}_{int(torch.randint(1,100,(1,)))}.gif")
+
+                        np.save(DIRECTORY_VOXELS_combined + "TABLE_"+str(t)+"_CHAIR_"+str(c)+"npy", new_voxel)
 
 
 if __name__ == '__main__':
