@@ -11,20 +11,18 @@ class VoxelSwapper:
 
     def swap_voxel_vertical(self, chair_voxel, table_voxel, res):
 
-        validity = {"chair":"valid", "table":"valid"}
-        vertices, faces = mcubes.marching_cubes(mcubes.smooth(table_voxel), isovalue=0)
+        vertices_chair, faces = mcubes.marching_cubes(mcubes.smooth(table_voxel), isovalue=0)
+        vertices_table, faces = mcubes.marching_cubes(mcubes.smooth(table_voxel), isovalue=0)
 
-        if vertices.shape[0] == 0:
-            validity["chair"] = "invalid"
-        vertices, faces = mcubes.marching_cubes(mcubes.smooth(table_voxel), isovalue=0)
-        if vertices.shape[0] == 0:
-            validity["table"] = "invalid"
+        valid = True 
+        if vertices_chair.shape[0] == 0 or vertices_table.shape[0] == 0:
+            valid = False
 
         tmp_voxel = table_voxel
         # tmp_voxel[0:int(res/2),:,:] = torch.min(chair_voxel[0:int(res/2),:,:],table_voxel[0:int(res/2),:,:])
         tmp_voxel = torch.min(torch.Tensor(chair_voxel),torch.Tensor(table_voxel))
 
-        return tmp_voxel, validity
+        return tmp_voxel, valid
 
 
 # vox = VoxelSwapper()
