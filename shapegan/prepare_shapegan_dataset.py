@@ -10,7 +10,7 @@ from multiprocessing import Pool
 import traceback
 from mesh_to_sdf import get_surface_point_cloud, scale_to_unit_cube, scale_to_unit_sphere, BadMeshException
 import VoxelSwapper
-from render_functions import render_voxel
+from render_functions import render_voxel,render_voxel_offscreen
 
 # Voxel resolutions to create.
 # Set to [] if no voxels are needed.
@@ -84,8 +84,12 @@ class PrepareShapeGanDataset():
                     for resolution in self.VOXEL_RESOLUTIONS:
                         voxels = surface_point_cloud.get_voxels(resolution, use_depth_buffer=USE_DEPTH_BUFFER,
                                                                 check_result=True)
-                        render_voxel(voxels, image_size=256, voxel_size=resolution, device=None,
-                                     output_filename=f"images/ORIGINAL_{self.DATASET_NAME}_{resolution}_{int(torch.randint(1, 100, (1,)))}.gif")
+                        # render_voxel(voxels, image_size=256, voxel_size=resolution, device=None,
+                        #              output_filename=f"images/ORIGINAL_{self.DATASET_NAME}_{resolution}_{int(torch.randint(1, 100, (1,)))}.gif")
+
+
+                        render_voxel_offscreen(voxels, image_size=256, voxel_size=resolution, device=None,
+                                     output_filename=f"images/TEST_{self.DATASET_NAME}_{resolution}_{int(torch.randint(1, 100, (1,)))}.gif")
                         np.save(self.get_voxel_filename(filename, resolution), voxels)
                         del voxels
 

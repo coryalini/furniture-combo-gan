@@ -20,10 +20,18 @@ from pytorch3d.renderer import (
     HardPhongShader,
 )
 from mesh_to_sdf import BadMeshException
-
+from pytorch3d.vis.plotly_vis import plot_scene
 import mcubes
 import skimage.measure
+from rendering.math import get_camera_transform
+import numpy as np
+import trimesh
 
+from pyrender import PerspectiveCamera,\
+                     DirectionalLight, SpotLight, PointLight,\
+                     MetallicRoughnessMaterial,\
+                     Primitive, Mesh, Node, Scene,\
+                     OffscreenRenderer
 def get_device():
     """
     Checks if GPU is available and returns device accordingly.
@@ -311,36 +319,43 @@ def render_voxel(voxels,image_size=256, voxel_size=64, device=None,output_filena
     voxel_resolution = voxel_size
     voxels_current = voxels
     voxels_current = np.pad(voxels_current, 1, mode='constant', constant_values=1)
-                        
-    vertices, faces, normals, _ = skimage.measure.marching_cubes(voxels_current, spacing=(size / voxel_resolution, size / voxel_resolution, size / voxel_resolution))
+
+    vertices, faces, normals, _ = skimage.measure.marching_cubes(voxels_current,level=0, spacing=(size / voxel_resolution, size / voxel_resolution, size / voxel_resolution))
     # vertices, faces = mcubes.marching_cubes(mcubes.smooth(voxels), isovalue=0)
+
+
     print("vec",vertices.shape)
     print("faces",faces.shape)
 
+    # cv2.imwrite(filename, image)
     vertices = torch.tensor(vertices).float()
     faces = torch.tensor(faces.astype(int))
     if vertices.shape[0] == 0:
         raise BadMeshException
     # Vertex coordinates are indexed by array position, so we need to
     # renormalize the coordinate system.
-    # vertices = (vertices / voxel_size) * (max_value - min_value) + min_value
-    # textures = (vertices - vertices.min()) / (vertices.max() - vertices.min())
-    # textures = pytorch3d.renderer.TexturesVertex(vertices.unsqueeze(0))
+
     textures = torch.ones_like(vertices.unsqueeze(0))  # (1, N_v, 3)
     textures = textures * torch.tensor([0.0,0.0,0.1])  # (1, N_v, 3)
 
     mesh = pytorch3d.structures.Meshes([vertices], [faces], textures=pytorch3d.renderer.TexturesVertex(textures)).to(
         device
     )
-    if voxel_size == 64:
-        cameras = create_surround_cameras(voxel_size*2, n_poses=20, up=(0.0, 1.0, 0.0), focal_length=2.0, at=[32.0, 32.0, 16.0])
-    elif voxel_size == 32:
-        cameras = create_surround_cameras(voxel_size*2, n_poses=20, up=(0.0, 1.0, 0.0), focal_length=2.0, at=[16.0, 10.0, 16.0])
-    else:
-        cameras = create_surround_cameras(voxel_size*2, n_poses=20, up=(0.0, 1.0, 0.0), focal_length=2.0, at=[0.0, 0.0, 0.0])
+
+    # if voxel_size == 64:
+    #     cameras = create_surround_cameras(voxel_size*2, n_poses=20, up=(0.0, 1.0, 0.0), focal_length=2.0, at=[32.0, 32.0, 16.0])
+    # elif voxel_size == 32:
+    #     cameras = create_surround_cameras(voxel_size*2, n_poses=20, up=(0.0, 1.0, 0.0), focal_length=2.0, at=[16.0, 10.0, 16.0])
+    # else:
+    cameras = create_surround_cameras(voxel_size*2, n_poses=20, up=(0.0, 1.0, 0.0), focal_length=2.0, at=[0.0, 0.0, 0.0])
 
     lights = pytorch3d.renderer.PointLights(location=[[0, 0, -3]], device=device)
     mesh_renderer = get_mesh_renderer(image_size=image_size, lights=lights, device=device)
+    # DEFAULT_ROTATION = (147, 20)
+    # cameras = get_camera_transform(1.4 * 2, DEFAULT_ROTATION[0], DEFAULT_ROTATION[1], project=True)
+    # image = mesh_renderer(mesh, cameras=cameras.to(device))
+    # image = image[0, :, :, :3].detach().cpu().numpy()
+    # plt.imsave(f"images/{output_filename[:'.gif']}.jpg", image)
 
     all_images = []
     with torch.no_grad():
@@ -349,20 +364,59 @@ def render_voxel(voxels,image_size=256, voxel_size=64, device=None,output_filena
             image = mesh_renderer(mesh, cameras=cameras[cam_idx].to(device))
             image = image[0,:,:,:3].detach().cpu().numpy()
             all_images.append(image)
-    # fig = plot_scene({
-    #     "figure": {
-    #         "Mesh": mesh,
-    #         "Camera": cameras[0],
-    #         "Camera1": cameras[1],
-    #         "Camera2": cameras[2],
-    #         "Camera3": cameras[3],
-    #         "Camera4": cameras[4],
-    #         "Camera5": cameras[5],
-    #         "Camera6": cameras[6],
-    #         "Camera8": cameras[7],
-    #         "Camera9": cameras[8],
-    
-    #     }
-    # })
-    # fig.show()
+    fig = plot_scene({
+        "figure": {
+            "Mesh": mesh,
+            "Camera": cameras[0],
+            "Camera1": cameras[1],
+            "Camera2": cameras[2],
+            "Camera3": cameras[3],
+            "Camera4": cameras[4],
+            "Camera5": cameras[5],
+            "Camera6": cameras[6],
+            "Camera8": cameras[7],
+            "Camera9": cameras[8],
+
+        }
+    })
+    fig.show()
     imageio.mimsave(output_filename, [np.uint8(im * 255) for im in all_images])
+def render_voxel_offscreen(voxels,image_size=256, voxel_size=64, device=None,output_filename="images/test_voxel.gif" ):
+    DEFAULT_ROTATION = (147, 20)
+    size = 2
+    voxel_resolution = voxel_size
+    voxels_current = voxels
+    voxels_current = np.pad(voxels_current, 1, mode='constant', constant_values=1)
+
+    vertices, faces, normals, _ = skimage.measure.marching_cubes(voxels_current, level=0, spacing=(
+    size / voxel_resolution, size / voxel_resolution, size / voxel_resolution))
+    # vertices, faces = mcubes.marching_cubes(mcubes.smooth(voxels), isovalue=0)
+
+    print(vertices,faces)
+    # cam = get_camera_transform(1.4 * 2, DEFAULT_ROTATION[0], DEFAULT_ROTATION[1], project=True)
+    bottle_trimesh = trimesh.Trimesh(vertices=vertices, faces=faces)
+    bottle_mesh = Mesh.from_trimesh(bottle_trimesh)
+    #
+    cam = PerspectiveCamera(yfov=(np.pi / 3.0))
+    cam_pose = np.array([
+        [0.0, -np.sqrt(2) / 2, np.sqrt(2) / 2, 0.5],
+        [1.0, 0.0, 0.0, 0.0],
+        [0.0, np.sqrt(2) / 2, np.sqrt(2) / 2, 0.4],
+        [0.0, 0.0, 0.0, 1.0]
+    ])
+
+    scene = Scene(ambient_light=np.array([0.02, 0.02, 0.02, 1.0]))
+    drill_pose = np.eye(4)
+    drill_pose[0, 3] = 0.1
+    drill_pose[2, 3] = -np.min(bottle_trimesh.vertices[:, 2])
+    bottle_node = scene.add(bottle_mesh, pose=drill_pose)
+
+    cam_node = scene.add(cam, pose=cam_pose)
+    r = OffscreenRenderer(viewport_width=640 * 2, viewport_height=480 * 2)
+    color, depth = r.render(scene)
+    r.delete()
+
+    import matplotlib.pyplot as plt
+    plt.figure(figsize=(20, 20))
+    plt.imshow(color)
+    plt.show()

@@ -61,14 +61,13 @@ def load_autoencoder(is_variational=False):
     autoencoder.eval()
     return autoencoder
 
-def load_generator(is_wgan=False):
-    from model.gan import Generator
-    generator = Generator()
-    if is_wgan:
-        generator.filename = "wgan-generator.to"
-    generator.load()
-    generator.eval()
-    return generator
+# def load_generator():
+#     from model.sdf_net import Generator
+#     generator = Generator()
+#     generator.filename = "hybrid_progressive_gan_generator_3-epoch-00250.to"
+#     generator.load()
+#     generator.eval()
+#     return generator
 
 def load_sdf_net(filename=None, return_latent_codes = False):
     from model.sdf_net import SDFNet, LATENT_CODES_FILENAME
@@ -766,7 +765,7 @@ if "sdf_net_sample" in sys.argv:
 if "hybrid_gan" in sys.argv:
     from rendering.raymarching import render_image
     from util import standard_normal_distribution
-    generator = load_sdf_net(filename='hybrid_gan_generator.to')
+    generator = load_sdf_net(filename='hybrid_progressive_gan_generator_3-epoch-00250.to')
 
     COUNT = 5
     
@@ -776,6 +775,8 @@ if "hybrid_gan" in sys.argv:
 
     for i in range(COUNT):
         plot.set_image(render_image(generator, codes[i, :], radius=1.6, crop=True, sdf_offset=-0.045, vertical_cutoff=1), i)
+        plot.save('plots/option-{:d}.png'.format(i))
+
 
     plot.save("plots/hybrid-gan-samples.pdf")
 
