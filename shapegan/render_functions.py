@@ -22,7 +22,7 @@ from pytorch3d.renderer import (
 from mesh_to_sdf import BadMeshException
 
 import mcubes
-
+import skimage.measure
 
 def get_device():
     """
@@ -306,7 +306,14 @@ def render_voxel(voxels,image_size=256, voxel_size=64, device=None,output_filena
     #     voxels = np.load("../data/chairs/voxels_8/a4.npy")
     if device is None:
         device = get_device()
-    vertices, faces = mcubes.marching_cubes(mcubes.smooth(voxels), isovalue=0)
+
+    size = 2
+    voxel_resolution = voxel_size
+    voxels_current = voxels
+    voxels_current = np.pad(voxels_current, 1, mode='constant', constant_values=1)
+                        
+    vertices, faces, normals, _ = skimage.measure.marching_cubes(voxels_current, spacing=(size / voxel_resolution, size / voxel_resolution, size / voxel_resolution))
+    # vertices, faces = mcubes.marching_cubes(mcubes.smooth(voxels), isovalue=0)
     print("vec",vertices.shape)
     print("faces",faces.shape)
 
@@ -354,7 +361,7 @@ def render_voxel(voxels,image_size=256, voxel_size=64, device=None,output_filena
     #         "Camera6": cameras[6],
     #         "Camera8": cameras[7],
     #         "Camera9": cameras[8],
-    #
+    
     #     }
     # })
     # fig.show()

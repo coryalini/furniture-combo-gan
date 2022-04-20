@@ -1,5 +1,7 @@
 from itertools import count
-
+import os
+os.environ['PYOPENGL_PLATFORM'] = 'egl'
+os.environ["SDL_VIDEODRIVER"] = "dummy"
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -21,6 +23,8 @@ from util import create_text_slice
 from datasets import VoxelDataset
 from torch.utils.data import DataLoader
 import render_functions
+# from matplotlib.pyplot import plt
+import skimage.measure
 
 
 def get_parameter(name, default):
@@ -157,10 +161,12 @@ def train():
                     if epoch % OUTPUT_FREQ == 0:
                         try:
                             render_functions.render_voxel(fake_sample[0, :, :, :].squeeze().detach().cpu(), voxel_size=VOXEL_RESOLUTION, output_filename="data/"+str(epoch)+ "_" + str(VOXEL_RESOLUTION)+".gif")
-                        except:
-                            print("mesh bad skip")
+                        except Exception as e:
+                            print(e)
+
                     if batch_index % OUTPUT_FREQ == 0 and show_viewer:
                         viewer.set_voxels(fake_sample[0, :, :, :].squeeze().detach().cpu().numpy())
+                        
                     if batch_index % OUTPUT_FREQ == 0 and "show_slice" in sys.argv:
                         tqdm.write(create_text_slice(fake_sample[0, :, :, :] / SDF_CLIPPING))
 
