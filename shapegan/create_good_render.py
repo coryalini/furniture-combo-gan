@@ -77,13 +77,13 @@ COUNT = 5
 codes = standard_normal_distribution.sample([COUNT, LATENT_CODE_SIZE]).to(device)
 
 plot = ImageGrid(COUNT, create_viewer=False)
-angles = np.linspace(0, 360, 4)
+angles = np.linspace(0, 360, 15)
 for im in range(COUNT):
     images = []
     for a in angles:
         print("Starting iteration", a)
         image = render_image(generator, codes[im, :], radius=1.6, crop=True, sdf_offset=-0.045,
-                             vertical_cutoff=1, angle=a, iterations=50)
+                             vertical_cutoff=1, angle=a)
         images.append(image)
     print("Saving image", im)
     imageio.mimsave(f"plots/results_{im}.gif",images)
