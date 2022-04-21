@@ -10,6 +10,7 @@ from model.sdf_net import SDFNet, LATENT_CODES_FILENAME
 from util import device, ensure_directory
 from rendering.math import get_camera_transform
 from scipy.spatial.transform import Rotation
+import imageio
 
 BATCH_SIZE = 100000
 
@@ -82,7 +83,17 @@ def render_image(sdf_net, latent_code, resolution=800, threshold=0.0005, sdf_off
     
     points = np.tile(camera_position, (screenspace_points.shape[0], 1))
     points = points.astype(np.float32)
-    
+
+    imgs = []
+    angles = np.linspace(0,2*np.pi, 15)
+    for ang in angles:
+        r = Rotation.from_rotvec([0, ang, 0])
+        r = torch.from_numpy(r.as_matrix()).to(torch.float)
+        points_rot = torch.matmul(points, r)
+        imgs.append(points_rot)
+    imgs = torch.stack(imgs)
+    imageio.mimsave("../vox_renders", imgs, fps=15)
+
     focal_distance = 1.0 / math.tan(math.asin(radius / camera_distance))
     ray_directions = screenspace_points[:, 0] * camera_right[:, np.newaxis] \
         + screenspace_points[:, 1] * camera_up[:, np.newaxis] \
