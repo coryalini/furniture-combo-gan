@@ -8,7 +8,7 @@ from tqdm import tqdm
 from model import LATENT_CODE_SIZE, LATENT_CODES_FILENAME
 import random
 from util import device
-
+import imageio
 
 class ImageGrid():
     def __init__(self, width, height=1, cell_width=3, cell_height=None, margin=0.2, create_viewer=True, crop=True):
@@ -77,11 +77,13 @@ COUNT = 5
 codes = standard_normal_distribution.sample([COUNT, LATENT_CODE_SIZE]).to(device)
 
 plot = ImageGrid(COUNT, create_viewer=False)
-angles = np.linspace(0, 360, 15)
+angles = np.linspace(0, 360, 4)
 for im in range(COUNT):
     images = []
     for a in angles:
+        print("Starting iteration", a)
         image = render_image(generator, codes[im, :], radius=1.6, crop=True, sdf_offset=-0.045,
-                             vertical_cutoff=1, angle=a)
+                             vertical_cutoff=1, angle=a, iterations=50)
         images.append(image)
-    imageio.mimsave(f"plots/results_{im}.gif", [np.uint8(im * 255) for im in all_images])
+    print("Saving image", im)
+    imageio.mimsave(f"plots/results_{im}.gif",images)
