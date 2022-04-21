@@ -76,9 +76,9 @@ codes = standard_normal_distribution.sample([COUNT, LATENT_CODE_SIZE]).to(device
 
 plot = ImageGrid(COUNT, create_viewer=False)
 
-for i in range(COUNT):
-    plot.set_image(
-        render_image(generator, codes[i, :], radius=1.6, crop=True, sdf_offset=-0.045, vertical_cutoff=1), i)
-    plot.save('plots/option-{:d}.png'.format(i))
-
-plot.save("plots/hybrid-gan-samples.pdf")
+for im in range(COUNT):
+    images = []
+    for i in range(15):
+        image = render_image(generator, codes[i, :], radius=1.6, crop=True, sdf_offset=-0.045, vertical_cutoff=1)
+        images.append(image)
+    imageio.mimsave(f"plots/results_{im}.gif", [np.uint8(im * 255) for im in all_images])
