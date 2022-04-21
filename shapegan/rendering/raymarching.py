@@ -21,7 +21,12 @@ def get_default_coordinates():
     light_position = np.matmul(np.linalg.inv(light_matrix), np.array([0, 0, 0, 1]))[:3]
     return camera_position, light_position
 
-camera_position, light_position = get_default_coordinates()
+def get_rotated_coordinates(angle=147):
+    camera_transform = get_camera_transform(2.2, angle, 20)
+    camera_position = np.matmul(np.linalg.inv(camera_transform), np.array([0, 0, 0, 1]))[:3]
+    light_matrix = get_camera_transform(6, 164, 50)
+    light_position = np.matmul(np.linalg.inv(light_matrix), np.array([0, 0, 0, 1]))[:3]
+    return camera_position, light_position
 
 def get_normals(sdf_net, points, latent_code):
     batch_count = points.shape[0] // BATCH_SIZE
@@ -65,7 +70,9 @@ def get_shadows(sdf_net, points, light_position, latent_code, threshold = 0.001,
     return shadows.cpu().numpy()
     
 
-def render_image(sdf_net, latent_code, resolution=800, threshold=0.0005, sdf_offset=0, iterations=1000, ssaa=2, radius=1.0, crop=False, color=(0.8, 0.1, 0.1), vertical_cutoff=None):
+def render_image(sdf_net, latent_code, resolution=800, threshold=0.0005, sdf_offset=0, iterations=1000, ssaa=2, radius=1.0, crop=False, color=(0.8, 0.1, 0.1), vertical_cutoff=None, angle=147):
+    camera_position, light_position = get_rotated_coordinates(angle)
+
     camera_forward = camera_position / np.linalg.norm(camera_position) * -1
     camera_distance = np.linalg.norm(camera_position).item()
     up = np.array([0, 1, 0])
@@ -83,16 +90,6 @@ def render_image(sdf_net, latent_code, resolution=800, threshold=0.0005, sdf_off
     
     points = np.tile(camera_position, (screenspace_points.shape[0], 1))
     points = points.astype(np.float32)
-
-    imgs = []
-    angles = np.linspace(0,2*np.pi, 15)
-    for ang in angles:
-        r = Rotation.from_rotvec([0, ang, 0])
-        r = torch.from_numpy(r.as_matrix()).to(torch.float)
-        points_rot = torch.matmul(points, r)
-        imgs.append(points_rot)
-    imgs = torch.stack(imgs)
-    imageio.mimsave("../vox_renders", imgs, fps=15)
 
     focal_distance = 1.0 / math.tan(math.asin(radius / camera_distance))
     ray_directions = screenspace_points[:, 0] * camera_right[:, np.newaxis] \
