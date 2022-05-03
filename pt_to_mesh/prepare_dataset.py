@@ -14,7 +14,7 @@ DATASET_NAME = 'chairs_v2'
 DIRECTORY_VOXELS = '../data/{:s}/voxels_{{:d}}/'.format(DATASET_NAME)
 DIRECTORY_BAD_MESHES = '../data/{:s}/bad_meshes/'.format(DATASET_NAME)
 
-VOXEL_RESOLUTIONS = [8, 16, 32, 64]
+VOXEL_RESOLUTIONS = [32]
 
 import pymeshfix
 def get_hash(filename):

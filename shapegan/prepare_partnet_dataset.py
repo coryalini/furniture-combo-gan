@@ -8,11 +8,19 @@ from util import ensure_directory
 from multiprocessing import Pool
 import traceback
 from mesh_to_sdf import get_surface_point_cloud,scale_to_unit_cube, scale_to_unit_sphere, BadMeshException
+<<<<<<< HEAD
 from render_functions import render_voxel
 import pymeshfix
 import torch
 DATASET_NAME = 'chairs'
 DIRECTORY_MODELS = '../data/6969/objs'
+=======
+
+os.environ['PYOPENGL_PLATFORM'] = 'egl'
+
+DATASET_NAME = 'chairs_v1'
+DIRECTORY_MODELS = '../data/43250/objs'
+>>>>>>> main
 MODEL_EXTENSION = '.obj'
 DIRECTORY_VOXELS = '../data/{:s}/voxels_{{:d}}/'.format(DATASET_NAME)
 DIRECTORY_UNIFORM = '../data/{:s}/uniform/'.format(DATASET_NAME)

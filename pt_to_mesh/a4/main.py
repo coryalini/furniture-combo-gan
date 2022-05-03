@@ -1,6 +1,6 @@
 import os
 import warnings
-
+os.environ['PYOPENGL_PLATFORM'] = 'egl'
 import hydra
 import numpy as np
 import torch
@@ -196,7 +196,7 @@ def create_model(cfg):
 
 
 def train_points(
-    cfg, point_cloud,filename
+    cfg, point_cloud,filename, image_num
 ):
 
     # Create model
@@ -217,7 +217,7 @@ def train_points(
         all_points.unsqueeze(0), create_surround_cameras(3.0, n_poses=20, up=(0.0, 1.0, 0.0), focal_length=2.0),
         cfg.data.image_size, file_prefix='points'
     )
-    imageio.mimsave('images/part_2_input.gif', [np.uint8(im * 255) for im in point_images])
+    imageio.mimsave(f'images/part_2_input{image_num}.gif', [np.uint8(im * 255) for im in point_images])
 
     # Run the main training loop.
     for epoch in range(0, cfg.training.num_epochs):
@@ -277,7 +277,7 @@ def train_points(
                     model, create_surround_cameras(3.0, n_poses=20, up=(0.0, 1.0, 0.0), focal_length=2.0),
                     cfg.data.image_size, file_prefix='eikonal', thresh=0.002,
                 )
-                imageio.mimsave('images/part_2.gif', [np.uint8(im * 255) for im in test_images])
+                imageio.mimsave(f'images/part_2{image_num}.gif', [np.uint8(im * 255) for im in test_images])
 
                 mesh = implicit_to_mesh(model.implicit_fn, scale=3, device="cuda", thresh=0.002)
                 trimmed_filename = filename[:-len(".npy")]
@@ -325,10 +325,10 @@ DIRECTORY_TRAINING = '../data/chairs_v2/'
 def run_training_for_data(cfg):
     files = os.listdir(DIRECTORY_DATA)
 
-    for file in files:
+    for i,file in enumerate(files):
         point_cloud = np.load(DIRECTORY_DATA+file)
 
-        success = train_points(cfg,point_cloud, file)
+        success = train_points(cfg,point_cloud, file, i)
         print("Success", success)
         prob = torch.randint(0, 10, (1,))
         if not success:

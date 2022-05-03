@@ -40,7 +40,7 @@ def get_device():
     Checks if GPU is available and returns device accordingly.
     """
     if torch.cuda.is_available():
-        device = torch.device("cuda:0")
+        device = torch.device("cuda")
     else:
         device = torch.device("cpu")
     return device
@@ -63,7 +63,7 @@ def get_points_renderer(
     """
     if device is None:
         if torch.cuda.is_available():
-            device = torch.device("cuda:0")
+            device = torch.device("cuda")
         else:
             device = torch.device("cpu")
     raster_settings = PointsRasterizationSettings(image_size=image_size, radius=radius,)

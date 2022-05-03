@@ -1,4 +1,4 @@
-name: l3d
+name: l3d_2
 channels:
   - pytorch3d
   - pytorch
@@ -104,4 +104,8 @@ dependencies:
     - trimesh==3.10.8
     - urllib3==1.26.8
     - visdom==0.1.8.9
+<<<<<<< HEAD
     - websocket-client==1.3.1
+=======
+    - websocket-client==1.3.1
+>>>>>>> 37aede2816e9136d00692ab07755e03b3830e9dc
