@@ -1,5 +1,7 @@
 from itertools import count
-
+import os
+os.environ['PYOPENGL_PLATFORM'] = 'egl'
+os.environ["SDL_VIDEODRIVER"] = "dummy"
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -20,8 +22,10 @@ SDF_CLIPPING = 0.1
 from util import create_text_slice
 from datasets import VoxelDataset
 from torch.utils.data import DataLoader
+import render_functions
+# from matplotlib.pyplot import plt
+import skimage.measure
 
-import render_functions 
 
 def get_parameter(name, default):
     for arg in sys.argv:
@@ -38,16 +42,20 @@ CONTINUE = "continue" in sys.argv
 FADE_IN_EPOCHS = 10
 BATCH_SIZE = 16
 GRADIENT_PENALTY_WEIGHT = 10
-NUMBER_OF_EPOCHS = int(get_parameter('epochs', 251))
-
-VOXEL_RESOLUTION = RESOLUTIONS[ITERATION]
+NUMBER_OF_EPOCHS = int(get_parameter('epochs', 250))
+my_resolutions = [32,64]
+VOXEL_RESOLUTION = my_resolutions[ITERATION]
 print(VOXEL_RESOLUTION)
+OUTPUT_FREQ = 3
 
-dataset = VoxelDataset.from_split('../data/chairs_v2/voxels_{:d}/{{:s}}.npy'.format(VOXEL_RESOLUTION), '../data/chairs_v2/train.txt')
+dataset = VoxelDataset.from_split('../data/chair_table_combinations/voxels_{:d}/{{:s}}.npy'.format(VOXEL_RESOLUTION),
+                                  '../data/chair_table_combinations/train.txt')
 data_loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=4)
+
 
 def get_generator_filename(iteration):
     return 'hybrid_progressive_gan_generator_{:d}.to'.format(iteration)
+
 
 generator = SDFNet(device='cuda')
 discriminator = Discriminator()
@@ -88,12 +96,15 @@ show_viewer = "nogui" not in sys.argv
 
 if show_viewer:
     from rendering import MeshRenderer
+
     viewer = MeshRenderer()
+
 
 def sample_latent_codes(current_batch_size):
     latent_codes = standard_normal_distribution.sample(sample_shape=[current_batch_size, LATENT_CODE_SIZE]).to(device)
     latent_codes = latent_codes.repeat((1, 1, grid_points.shape[0])).reshape(-1, LATENT_CODE_SIZE)
     return latent_codes
+
 
 grid_points = get_voxel_coordinates(VOXEL_RESOLUTION, return_torch_tensor=True)
 grid_points_default_batch = grid_points.repeat((BATCH_SIZE, 1))
@@ -102,19 +113,24 @@ history_fake = deque(maxlen=50)
 history_real = deque(maxlen=50)
 history_gradient_penalty = deque(maxlen=50)
 
+
 def get_gradient_penalty(real_sample, fake_sample):
     alpha = torch.rand((real_sample.shape[0], 1, 1, 1), device=device).expand(real_sample.shape)
 
     interpolated_sample = alpha * real_sample + ((1 - alpha) * fake_sample)
     interpolated_sample.requires_grad = True
-    
+
     discriminator_output = discriminator_parallel(interpolated_sample)
 
-    gradients = autograd.grad(outputs=discriminator_output, inputs=interpolated_sample, grad_outputs=torch.ones(discriminator_output.shape).to(device), create_graph=True, retain_graph=True, only_inputs=True)[0]
-    return ((gradients.norm(2, dim=(1,2,3)) - 1) ** 2).mean() * GRADIENT_PENALTY_WEIGHT
+    gradients = autograd.grad(outputs=discriminator_output, inputs=interpolated_sample,
+                              grad_outputs=torch.ones(discriminator_output.shape).to(device), create_graph=True,
+                              retain_graph=True, only_inputs=True)[0]
+    return ((gradients.norm(2, dim=(1, 2, 3)) - 1) ** 2).mean() * GRADIENT_PENALTY_WEIGHT
+
 
 def train():
-    progress = tqdm(total=NUMBER_OF_EPOCHS * (len(dataset) // BATCH_SIZE + 1), initial=first_epoch * (len(dataset) // BATCH_SIZE + 1))
+    progress = tqdm(total=NUMBER_OF_EPOCHS * (len(dataset) // BATCH_SIZE + 1),
+                    initial=first_epoch * (len(dataset) // BATCH_SIZE + 1))
 
     for epoch in range(first_epoch, NUMBER_OF_EPOCHS):
         progress.desc = 'Epoch {:d}/{:d} ({:d}³)'.format(epoch, NUMBER_OF_EPOCHS, VOXEL_RESOLUTION)
@@ -122,7 +138,7 @@ def train():
         epoch_start_time = time.time()
         for valid_sample in data_loader:
             try:
-                if valid_sample.shape[0] == 1: # Skip final batch if it contains only one object
+                if valid_sample.shape[0] == 1:  # Skip final batch if it contains only one object
                     continue
                 valid_sample = valid_sample.to(device)
                 current_batch_size = valid_sample.shape[0]
@@ -132,31 +148,34 @@ def train():
                     batch_grid_points = grid_points.repeat((current_batch_size, 1))
 
                 if not CONTINUE and ITERATION > 0:
-                    discriminator.fade_in_progress = (epoch + batch_index / (len(dataset) / BATCH_SIZE)) / FADE_IN_EPOCHS
+                    discriminator.fade_in_progress = (epoch + batch_index / (
+                                len(dataset) / BATCH_SIZE)) / FADE_IN_EPOCHS
 
                 # train generator
                 if batch_index % 5 == 0:
                     generator_optimizer.zero_grad()
-                    
+
                     latent_codes = sample_latent_codes(current_batch_size)
                     fake_sample = generator_parallel(batch_grid_points, latent_codes)
                     fake_sample = fake_sample.reshape(-1, VOXEL_RESOLUTION, VOXEL_RESOLUTION, VOXEL_RESOLUTION)
-                    # print(fake_sample.shape)
-                    # save voxel 
-                    if epoch % 50 == 0:
-                        render_functions.render_voxel(fake_sample[0, :, :, :].squeeze().detach().cpu(), voxel_size=VOXEL_RESOLUTION, output_filename="data/"+str(epoch)+ "_" + str(VOXEL_RESOLUTION)+".gif")
-                    if batch_index % 50 == 0 and show_viewer:
+                    if epoch % OUTPUT_FREQ == 0:
+                        try:
+                            render_functions.render_voxel(fake_sample[0, :, :, :].squeeze().detach().cpu(), voxel_size=VOXEL_RESOLUTION, output_filename="data/"+str(epoch)+ "_" + str(VOXEL_RESOLUTION)+".gif")
+                        except Exception as e:
+                            print(e)
+
+                    if batch_index % OUTPUT_FREQ == 0 and show_viewer:
                         viewer.set_voxels(fake_sample[0, :, :, :].squeeze().detach().cpu().numpy())
-                    if batch_index % 50 == 0 and "show_slice" in sys.argv:
+                        
+                    if batch_index % OUTPUT_FREQ == 0 and "show_slice" in sys.argv:
                         tqdm.write(create_text_slice(fake_sample[0, :, :, :] / SDF_CLIPPING))
-                    
+
                     fake_discriminator_output = discriminator_parallel(fake_sample)
                     fake_loss = -fake_discriminator_output.mean()
                     fake_loss.backward()
                     generator_optimizer.step()
-                    
-                
-                # train discriminator on fake samples                
+
+                # train discriminator on fake samples
                 discriminator_optimizer.zero_grad()
                 latent_codes = sample_latent_codes(current_batch_size)
                 fake_sample = generator_parallel(batch_grid_points, latent_codes)
@@ -165,13 +184,13 @@ def train():
 
                 # train discriminator on real samples
                 discriminator_output_valid = discriminator_parallel(valid_sample)
-                
+
                 gradient_penalty = get_gradient_penalty(valid_sample.detach(), fake_sample.detach())
                 loss = discriminator_output_fake.mean() - discriminator_output_valid.mean() + gradient_penalty
                 loss.backward()
 
                 discriminator_optimizer.step()
-                
+
                 history_fake.append(discriminator_output_fake.mean().item())
                 history_real.append(discriminator_output_valid.mean().item())
                 history_gradient_penalty.append(gradient_penalty.item())
@@ -179,16 +198,16 @@ def train():
 
                 if "verbose" in sys.argv and batch_index % 50 == 0:
                     tqdm.write("Epoch " + str(epoch) + ", batch " + str(batch_index) +
-                        ": D(x'): " + '{0:.4f}'.format(history_fake[-1]) +
-                        ", D(x): " + '{0:.4f}'.format(history_real[-1]) +
-                        ", loss: " + '{0:.4f}'.format(history_real[-1] - history_fake[-1]) +
-                        ", gradient penalty: " + '{0:.4f}'.format(gradient_penalty.item()))
+                               ": D(x'): " + '{0:.4f}'.format(history_fake[-1]) +
+                               ", D(x): " + '{0:.4f}'.format(history_real[-1]) +
+                               ", loss: " + '{0:.4f}'.format(history_real[-1] - history_fake[-1]) +
+                               ", gradient penalty: " + '{0:.4f}'.format(gradient_penalty.item()))
                 progress.update()
             except KeyboardInterrupt:
                 if show_viewer:
                     viewer.stop()
                 return
-        
+
         prediction_fake = np.mean(history_fake)
         prediction_real = np.mean(history_real)
         recent_gradient_penalty = np.mean(history_gradient_penalty)
@@ -200,10 +219,10 @@ def train():
             prediction_real,
             prediction_real - prediction_fake,
             recent_gradient_penalty))
-        
+
         generator.save()
         discriminator.save()
-        
+
         if epoch % 10 == 0:
             generator.save(epoch=epoch)
             discriminator.save(epoch=epoch)
@@ -213,8 +232,10 @@ def train():
             slice_voxels = generator_parallel(grid_points, latent_code)
             slice_voxels = slice_voxels.reshape(VOXEL_RESOLUTION, VOXEL_RESOLUTION, VOXEL_RESOLUTION)
             tqdm.write(create_text_slice(slice_voxels / SDF_CLIPPING))
-        
-        log_file.write('{:d} {:.1f} {:.4f} {:.4f} {:.4f}\n'.format(epoch, time.time() - epoch_start_time, prediction_fake, prediction_real, recent_gradient_penalty))
+
+        log_file.write(
+            '{:d} {:.1f} {:.4f} {:.4f} {:.4f}\n'.format(epoch, time.time() - epoch_start_time, prediction_fake,
+                                                        prediction_real, recent_gradient_penalty))
         log_file.flush()
 
 

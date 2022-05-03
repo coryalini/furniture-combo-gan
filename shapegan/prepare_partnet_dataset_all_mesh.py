@@ -1,6 +1,6 @@
 import os
 # Enable this when running on a computer without a screen:
-# os.environ['PYOPENGL_PLATFORM'] = 'egl'
+os.environ['PYOPENGL_PLATFORM'] = 'egl'
 import trimesh
 from tqdm import tqdm
 import numpy as np
@@ -8,32 +8,16 @@ from util import ensure_directory
 from multiprocessing import Pool
 import traceback
 from mesh_to_sdf import get_surface_point_cloud,scale_to_unit_cube, scale_to_unit_sphere, BadMeshException
-<<<<<<< HEAD
 from render_functions import render_voxel
 import pymeshfix
 import torch
-DATASET_NAME = 'chairs'
-DIRECTORY_MODELS = '../data/6969/objs'
-=======
-
-os.environ['PYOPENGL_PLATFORM'] = 'egl'
-
-DATASET_NAME = 'chairs_v1'
-DIRECTORY_MODELS = '../data/43250/objs'
->>>>>>> main
-MODEL_EXTENSION = '.obj'
-DIRECTORY_VOXELS = '../data/{:s}/voxels_{{:d}}/'.format(DATASET_NAME)
-DIRECTORY_UNIFORM = '../data/{:s}/uniform/'.format(DATASET_NAME)
-DIRECTORY_SURFACE = '../data/{:s}/surface/'.format(DATASET_NAME)
-DIRECTORY_SDF_CLOUD = '../data/{:s}/cloud/'.format(DATASET_NAME)
-DIRECTORY_BAD_MESHES = '../data/{:s}/bad_meshes/'.format(DATASET_NAME)
 
 # Voxel resolutions to create.
 # Set to [] if no voxels are needed.
 # Set to [32] for for all models except for the progressively growing DeepSDF/Voxel GAN
 VOXEL_RESOLUTIONS = [8, 16, 32, 64]
 
-CREATE_SDF_CLOUDS = False # For DeepSDF autodecoder, contains uniformly and non-uniformly sampled points as proposed in the DeepSDF paper
+CREATE_SDF_CLOUDS = True # For DeepSDF autodecoder, contains uniformly and non-uniformly sampled points as proposed in the DeepSDF paper
 CREATE_UNIFORM_AND_SURFACE = True # Uniformly sampled points for the Pointnet-based GAN and surface point clouds for the pointnet-based GAN with refinement
 
 SDF_POINT_CLOUD_SIZE = 200000 # For DeepSDF point clouds (CREATE_SDF_CLOUDS)
@@ -99,8 +83,9 @@ def get_uniform_and_surface_points(surface_point_cloud, number_of_points = 20000
 def process_model_file(filename):
     try:
         if is_bad_mesh(filename):
+            print("bad mesh")
             return
-        
+
         mesh = trimesh.load(filename)
 
         voxel_filenames = [get_voxel_filename(filename, resolution) for resolution in VOXEL_RESOLUTIONS]
@@ -110,23 +95,22 @@ def process_model_file(filename):
             try:
                 for resolution in VOXEL_RESOLUTIONS:
                     voxels = surface_point_cloud.get_voxels(resolution, use_depth_buffer=USE_DEPTH_BUFFER, check_result=True)
-                    # render_voxel(voxels, image_size=256, voxel_size=64, device=None,
-                    #              output_filename=f"images/ORIGINAL_chair_{resolution}_{int(torch.randint(1,10,(1,)))}.gif")
+                    # render_voxel(voxels, image_size=256, voxel_size=64, device=None,output_filename=f"images/ORIGINAL_chair_{resolution}_{int(torch.randint(1,10,(1,)))}.gif")
 
                     np.save(get_voxel_filename(filename, resolution), voxels)
                     del voxels
-            
+
             except BadMeshException:
                 tqdm.write("Skipping bad mesh. ({:s})".format(get_hash(filename)))
                 mark_bad_mesh(filename)
                 return
             del mesh_unit_cube, surface_point_cloud
-        
+
 
         create_uniform_and_surface = CREATE_UNIFORM_AND_SURFACE and (not os.path.exists(get_uniform_filename(filename)) or not os.path.exists(get_surface_filename(filename)))
-        create_sdf_clouds = CREATE_SDF_CLOUDS and not os.path.exists(get_sdf_cloud_filename(filename))
+        # create_sdf_clouds = CREATE_SDF_CLOUDS and not os.path.exists(get_sdf_cloud_filename(filename))
         print("create_uniform_and_surface",create_uniform_and_surface)
-        if create_uniform_and_surface or create_sdf_clouds:
+        if create_uniform_and_surface or CREATE_SDF_CLOUDS:
             mesh_unit_sphere = scale_to_unit_sphere(mesh)
             surface_point_cloud = get_surface_point_cloud(mesh_unit_sphere, bounding_radius=1, scan_count=SCAN_COUNT, scan_resolution=SCAN_RESOLUTION)
             try:
@@ -139,7 +123,7 @@ def process_model_file(filename):
                     combined_surface = np.concatenate((near_surface_points, near_surface_sdf[:, np.newaxis]), axis=1)
                     np.save(get_surface_filename(filename), combined_surface)
 
-                if create_sdf_clouds:
+                if CREATE_SDF_CLOUDS:
                     sdf_points, sdf_values = surface_point_cloud.sample_sdf_near_surface(use_scans=True, sign_method='depth' if USE_DEPTH_BUFFER else 'normal', number_of_points=SDF_POINT_CLOUD_SIZE, min_size=0.015)
                     combined = np.concatenate((sdf_points, sdf_values[:, np.newaxis]), axis=1)
                     np.save(get_sdf_cloud_filename(filename), combined)
@@ -152,21 +136,9 @@ def process_model_file(filename):
     except:
         traceback.print_exc()
 
-# def process_model_files():
-    # for res in VOXEL_RESOLUTIONS:
-    #     ensure_directory(DIRECTORY_VOXELS.format(res))
-    # if CREATE_UNIFORM_AND_SURFACE:
-    #     ensure_directory(DIRECTORY_UNIFORM)
-    #     ensure_directory(DIRECTORY_SURFACE)
-    # if CREATE_SDF_CLOUDS:
-    #     ensure_directory(DIRECTORY_SDF_CLOUD)
-    # ensure_directory(DIRECTORY_BAD_MESHES)
-    # files = list(get_model_files())
-    # for filename in files:
-    #     process_model_file(filename),
-
-#
 def process_model_files():
+    print("Inside process model files")
+
     for res in VOXEL_RESOLUTIONS:
         ensure_directory(DIRECTORY_VOXELS.format(res))
     if CREATE_UNIFORM_AND_SURFACE:
@@ -175,21 +147,36 @@ def process_model_files():
     if CREATE_SDF_CLOUDS:
         ensure_directory(DIRECTORY_SDF_CLOUD)
     ensure_directory(DIRECTORY_BAD_MESHES)
-
     files = list(get_model_files())
-
-    worker_count = os.cpu_count() // 2
-    print("Using {:d} processes.".format(worker_count))
-    pool = Pool(worker_count)
-
-    progress = tqdm(total=len(files))
-    def on_complete(*_):
-        progress.update()
-
+    print(files)
     for filename in files:
-        pool.apply_async(process_model_file, args=(filename,), callback=on_complete)
-    pool.close()
-    pool.join()
+        process_model_file(filename),
+
+#
+# def process_model_files():
+#     for res in VOXEL_RESOLUTIONS:
+#         ensure_directory(DIRECTORY_VOXELS.format(res))
+#     if CREATE_UNIFORM_AND_SURFACE:
+#         ensure_directory(DIRECTORY_UNIFORM)
+#         ensure_directory(DIRECTORY_SURFACE)
+#     if CREATE_SDF_CLOUDS:
+#         ensure_directory(DIRECTORY_SDF_CLOUD)
+#     ensure_directory(DIRECTORY_BAD_MESHES)
+#
+#     files = list(get_model_files())
+#
+#     worker_count = os.cpu_count() // 2
+#     print("Using {:d} processes.".format(worker_count))
+#     pool = Pool(worker_count)
+#
+#     progress = tqdm(total=len(files))
+#     def on_complete(*_):
+#         progress.update()
+#
+#     for filename in files:
+#         pool.apply_async(process_model_file, args=(filename,), callback=on_complete)
+#     pool.close()
+#     pool.join()
 
 def combine_sdf_clouds():
     import torch
@@ -214,7 +201,45 @@ def combine_sdf_clouds():
     torch.save(points, os.path.join('data', 'sdf_points.to'))
     torch.save(sdf, os.path.join('data', 'sdf_values.to'))
 
+def get_ids(base_path, obj_name):
+    full_path = base_path + obj_name + "/"+obj_name+".txt"
+
+    f = open(full_path)
+    ids = [line[:-1] for line in f.readlines()]
+
+    return ids
+
+
 if __name__ == '__main__':
-    process_model_files()
-    if CREATE_SDF_CLOUDS:
-        combine_sdf_clouds()
+    global DATASET_NAME
+    DATASET_NAME = 'combined'
+    global MODEL_EXTENSION
+    MODEL_EXTENSION = '.obj'
+    global DIRECTORY_VOXELS
+    DIRECTORY_VOXELS = '../data/{:s}/voxels_{{:d}}/'.format(DATASET_NAME, VOXEL_RESOLUTIONS)
+    global DIRECTORY_UNIFORM
+    DIRECTORY_UNIFORM = '../data/{:s}/uniform/'.format(DATASET_NAME)
+    global DIRECTORY_SURFACE
+    DIRECTORY_SURFACE = '../data/{:s}/surface/'.format(DATASET_NAME)
+    global DIRECTORY_SDF_CLOUD
+    global DIRECTORY_BAD_MESHES
+    DIRECTORY_BAD_MESHES= '../data/{:s}/bad_meshes/'.format(DATASET_NAME)
+
+
+    base_path = '../data/part_objs/'
+
+    chair_ids = get_ids(base_path, "chair")
+    print(chair_ids)
+    table_ids = get_ids(base_path, "table")
+    global DIRECTORY_MODELS
+    for i in range(len(chair_ids)):
+        print("Inside for loop for main")
+        DIRECTORY_SDF_CLOUD = f'../data/{DATASET_NAME}/cloud/{i}'
+
+        DIRECTORY_MODELS = f'../data/part_objs/chair/{chair_ids[i]}/objs'
+        process_model_files()
+        DIRECTORY_MODELS = f'../data/part_objs/table/{table_ids[i]}/objs'
+        process_model_files()
+
+        if CREATE_SDF_CLOUDS:
+            combine_sdf_clouds()

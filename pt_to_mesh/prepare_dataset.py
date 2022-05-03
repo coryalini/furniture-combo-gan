@@ -8,15 +8,15 @@ USE_DEPTH_BUFFER = True
 
 from render_functions import render_voxel
 
-DATASET_NAME = 'chairs_v1'
+DATASET_NAME = 'chairs_v2'
 # DIRECTORY_MODELS = '../data/6969/objs'
 # MODEL_EXTENSION = '.obj'
 DIRECTORY_VOXELS = '../data/{:s}/voxels_{{:d}}/'.format(DATASET_NAME)
 DIRECTORY_BAD_MESHES = '../data/{:s}/bad_meshes/'.format(DATASET_NAME)
 
-VOXEL_RESOLUTIONS = [8, 16, 32, 64]
+VOXEL_RESOLUTIONS = [32]
 
-
+import pymeshfix
 def get_hash(filename):
     return filename.split('/')[-3]
 #
@@ -33,50 +33,39 @@ def ensure_directory(directory):
         os.makedirs(directory)
 
 def scale_to_unit_sphere(mesh):
-    mesh = trimesh.Trimesh(vertices=mesh.verts_list()[0].detach().cpu(), faces=mesh.faces_list()[0].detach().cpu())
+    # mesh = trimesh.Trimesh(vertices=mesh.verts_list()[0].detach().cpu(), faces=mesh.faces_list()[0].detach().cpu())
     vertices = mesh.vertices - mesh.bounding_box.centroid
     distances = np.linalg.norm(vertices, axis=1)
     vertices /= np.max(distances)
     return trimesh.Trimesh(vertices=vertices, faces=mesh.faces)
+def repair_mesh(mesh):
+    meshfix = pymeshfix.MeshFix(mesh.verts_list()[0].detach().cpu().numpy(),
+                                mesh.faces_list()[0].detach().cpu().numpy())
+    # meshfix.plot()
+    meshfix.repair(verbose=True)
+    # meshfix.plot()
+    mesh = trimesh.Trimesh(vertices=meshfix.points(), faces=meshfix.faces())
+    return mesh
 
 def process_model_file(mesh_new,filename):
-<<<<<<< HEAD
-    print(mesh_new.verts_list()[0] )
-    if mesh_new.verts_list()[0].shape[0] == 0:
-        print("Failed: Empty Mesh")
-        return 
-=======
-    print("mesh")
->>>>>>> 37aede2816e9136d00692ab07755e03b3830e9dc
+    mesh_new = repair_mesh(mesh_new)
     mymesh = scale_to_unit_sphere(mesh_new)
-    print("1")
     surface_point_cloud = get_surface_point_cloud(mymesh)
-    print("2")
     voxel_filenames = [get_voxel_filename(filename, resolution) for resolution in VOXEL_RESOLUTIONS]
     print(voxel_filenames)
     # if not all(os.path.exists(f) for f in voxel_filenames):
-    try:
-        for resolution in VOXEL_RESOLUTIONS:
-            voxels = surface_point_cloud.get_voxels(resolution, use_depth_buffer=USE_DEPTH_BUFFER,check_result=True)
-            render_voxel(voxels, image_size=256, voxel_size=64, device=None,output_filename=f"images/pre_process_{resolution}.gif")
-            np.save(get_voxel_filename(filename, resolution), voxels)
-            del voxels
-<<<<<<< HEAD
+    # try:
+    for resolution in VOXEL_RESOLUTIONS:
+        voxels = surface_point_cloud.get_voxels(resolution, use_depth_buffer=USE_DEPTH_BUFFER,check_result=True)
+        render_voxel(voxels, image_size=256, voxel_size=resolution, device=None,output_filename=f"images/pre_process_{resolution}.gif")
+        np.save(get_voxel_filename(filename, resolution), voxels)
+        del voxels
     # except BadMeshException:
-    #     print("Skipping bad mesh. ({:s})".format(voxel_filenames))
-    #     tqdm.write("Skipping bad mesh. ({:s})".format(voxel_filenames))
-    #     return
-    except Exception as e:
-        print("process model file failed",e)
-
-    del mymesh, surface_point_cloud
-=======
-    except BadMeshException:
-        print("Skipping bad mesh. ({:s})".format(voxel_filenames[0]))
-        tqdm.write("Skipping bad mesh. ({:s})".format(voxel_filenames[0]))
-        return
-    except Exception as e:
-        print("process model file failed",e)
-        print("TYPE",type(e))
-        exit(1)
->>>>>>> 37aede2816e9136d00692ab07755e03b3830e9dc
+    #     print("Skipping bad mesh. ({:s})".format(voxel_filenames[0]))
+    #     tqdm.write("Skipping bad mesh. ({:s})".format(voxel_filenames[0]))
+    #     return False
+    # except Exception as e:
+    #     print("process model file failed",e)
+    #     print("TYPE",type(e))
+    #     return False
+    # return True

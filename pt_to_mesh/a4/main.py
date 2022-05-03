@@ -1,6 +1,6 @@
 import os
 import warnings
-
+os.environ['PYOPENGL_PLATFORM'] = 'egl'
 import hydra
 import numpy as np
 import torch
@@ -196,7 +196,7 @@ def create_model(cfg):
 
 
 def train_points(
-    cfg, point_cloud,filename
+    cfg, point_cloud,filename, image_num
 ):
 
     # Create model
@@ -217,7 +217,7 @@ def train_points(
         all_points.unsqueeze(0), create_surround_cameras(3.0, n_poses=20, up=(0.0, 1.0, 0.0), focal_length=2.0),
         cfg.data.image_size, file_prefix='points'
     )
-    imageio.mimsave('images/part_2_input.gif', [np.uint8(im * 255) for im in point_images])
+    imageio.mimsave(f'images/part_2_input{image_num}.gif', [np.uint8(im * 255) for im in point_images])
 
     # Run the main training loop.
     for epoch in range(0, cfg.training.num_epochs):
@@ -231,7 +231,7 @@ def train_points(
             distances, gradients = model.implicit_fn.get_distance_and_gradient(points)
             l1 = torch.nn.L1Loss()
             loss = l1(distances, torch.zeros_like(distances)) # TODO (Q2): Point cloud SDF loss on distances
-            point_loss = loss * cfg.training.inter_weight
+            point_loss = loss
 
             # Sample random points in bounding box
             eikonal_points = get_random_points(
@@ -277,26 +277,24 @@ def train_points(
                     model, create_surround_cameras(3.0, n_poses=20, up=(0.0, 1.0, 0.0), focal_length=2.0),
                     cfg.data.image_size, file_prefix='eikonal', thresh=0.002,
                 )
-                imageio.mimsave('images/part_2.gif', [np.uint8(im * 255) for im in test_images])
+                imageio.mimsave(f'images/part_2{image_num}.gif', [np.uint8(im * 255) for im in test_images])
 
                 mesh = implicit_to_mesh(model.implicit_fn, scale=3, device="cuda", thresh=0.002)
-                print("mesh shape", mesh.verts_list()[0].shape)
-                trimmed_filename =filename[:-len(".npy")]
-                print("Input file",trimmed_filename)
-                # process_model_file(mesh,trimmed_filename)
+                trimmed_filename = filename[:-len(".npy")]
+                process_model_file(mesh,trimmed_filename)
+
                 print("process model finished")
                 # render_voxel(image_size=256, voxel_size=64, device=None,output_filename="images/post_process.png")
                 # print("Saving mesh to", cfg.data.point_cloud_path[:-len(".npy")] +".obj")
                 # # io.save(cfg.data.point_cloud_path[:-len(".npy")],mesh)
                 # # print(mesh.verts_list(), mesh.faces_list())
-                io.save_obj("../data/chairs_v1/"+ trimmed_filename +".obj",mesh.verts_list()[0], mesh.faces_list()[0])
+                # io.save_obj(cfg.data.point_cloud_path[:-len(".npy")] +".obj",mesh.verts_list()[0], mesh.faces_list()[0])
 
             except Exception as e:
                 print("ERROR::::rendering/voxel failed",e)
                 # print("Empty mesh")
-                exit(1)
-                pass
-
+                return False
+    return True
 
 def pretrain_sdf(
     cfg,
@@ -322,28 +320,34 @@ def pretrain_sdf(
         loss.backward()
         optimizer.step()
 
-DIRECTORY_DATA = '../data/combined_pc_tmp/'
-DIRECTORY_TRAINING = '../data/chairs_v1/'
+DIRECTORY_DATA = '../data/combined_pc/'
+DIRECTORY_TRAINING = '../data/chairs_v2/'
 def run_training_for_data(cfg):
     files = os.listdir(DIRECTORY_DATA)
 
-    for file in files:
-        print(file)
+    for i,file in enumerate(files):
         point_cloud = np.load(DIRECTORY_DATA+file)
-        prob = torch.randint(0, 10,(1,))
-        if int(prob) <= 8:
+
+        success = train_points(cfg,point_cloud, file, i)
+        print("Success", success)
+        prob = torch.randint(0, 10, (1,))
+        if not success:
+            print(DIRECTORY_TRAINING + "failures.txt")
+            file1 = open(DIRECTORY_TRAINING + "failures.txt", "a")  # append mode
+            print('{:s}\n'.format(file))
+            file1.write('{:s}\n'.format(file[:-len(".npy")]))
+            file1.close()
+            continue
+        elif int(prob) <= 8:
             file1 = open(DIRECTORY_TRAINING + "train.txt", "a")  # append mode
             print('{:s}\n'.format(file))
-            file1.write('{:s}\n'.format(file))
+            file1.write('{:s}\n'.format(file[:-len(".npy")]))
             file1.close()
         else:
             file1 = open(DIRECTORY_TRAINING + "test.txt", "a")  # append mode
             '{:s}\n'.format(file)
-            file1.write('{:s}\n'.format(file))
+            file1.write('{:s}\n'.format(file[:-len(".npy")]))
             file1.close()
-        train_points(cfg,point_cloud, file)
-#
-
 
 @hydra.main(config_path='configs', config_name='torus')
 def main(cfg: DictConfig):
@@ -359,7 +363,6 @@ def main(cfg: DictConfig):
 
 
 if __name__ == "__main__":
-    os.environ['PYOPENGL_PLATFORM'] = 'egl'
     main()
 
 

@@ -10,6 +10,11 @@
 screenshots/
 images/
 plots/
+plots_32/
+plots_32_interpolation/
+plots_64/
+pc_plots_32/
+pc_plots_32_interpolation/
 data/shapenet**
 
 *.pdf

@@ -36,7 +36,7 @@ training:
   checkpoint_interval: 100
   resume: False
 
-  render_interval: 500
+  render_interval: 1000
 
   inter_weight: 0.1
   eikonal_weight: 0.02

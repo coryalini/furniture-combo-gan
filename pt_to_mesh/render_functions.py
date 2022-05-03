@@ -40,7 +40,7 @@ def get_device():
     Checks if GPU is available and returns device accordingly.
     """
     if torch.cuda.is_available():
-        device = torch.device("cuda:0")
+        device = torch.device("cuda")
     else:
         device = torch.device("cpu")
     return device
@@ -63,7 +63,7 @@ def get_points_renderer(
     """
     if device is None:
         if torch.cuda.is_available():
-            device = torch.device("cuda:0")
+            device = torch.device("cuda")
         else:
             device = torch.device("cpu")
     raster_settings = PointsRasterizationSettings(image_size=image_size, radius=radius,)
@@ -75,7 +75,7 @@ def get_points_renderer(
 
 
 # Spiral cameras looking at the origin
-def create_surround_cameras(radius, n_poses=20, up=(0.0, 1.0, 0.0), focal_length=1.0):
+def create_surround_cameras(radius, n_poses=20, up=(0.0, 1.0, 0.0), focal_length=1.0, at=None):
     cameras = []
 
     for theta in np.linspace(0, 2 * np.pi, n_poses + 1)[:-1]:
@@ -84,10 +84,11 @@ def create_surround_cameras(radius, n_poses=20, up=(0.0, 1.0, 0.0), focal_length
             eye = [np.cos(theta + np.pi / 2) * radius, 1.0, -np.sin(theta + np.pi / 2) * radius]
         else:
             eye = [np.cos(theta + np.pi / 2) * radius, np.sin(theta + np.pi / 2) * radius, 2.0]
-
+        if at is None:
+            at =[0.0, 0.0, 0.0]
         R, T = look_at_view_transform(
             eye=(eye,),
-            at=([0.0, 0.0, 0.0],),
+            at=(at,),
             up=(up,),
         )
 
@@ -248,14 +249,20 @@ def render_voxel(voxels,image_size=256, voxel_size=64, device=None,output_filena
     # renormalize the coordinate system.
     # vertices = (vertices / voxel_size) * (max_value - min_value) + min_value
     # textures = (vertices - vertices.min()) / (vertices.max() - vertices.min())
-    textures = pytorch3d.renderer.TexturesVertex(vertices.unsqueeze(0))
+    # textures = pytorch3d.renderer.TexturesVertex(vertices.unsqueeze(0))
     textures = torch.ones_like(vertices.unsqueeze(0))  # (1, N_v, 3)
-    textures = textures * torch.tensor([0.7,0.7,0.1])  # (1, N_v, 3)
+    textures = textures * torch.tensor([0.0,0.0,0.1])  # (1, N_v, 3)
 
     mesh = pytorch3d.structures.Meshes([vertices], [faces], textures=pytorch3d.renderer.TexturesVertex(textures)).to(
         device
     )
-    cameras = create_surround_cameras(30.0, n_poses=20, up=(0.0, 2.0, 0.0), focal_length=2.0)
+    if voxel_size == 64:
+        cameras = create_surround_cameras(voxel_size*2, n_poses=20, up=(0.0, 1.0, 0.0), focal_length=2.0, at=[32.0, 32.0, 16.0])
+    elif voxel_size == 32:
+        cameras = create_surround_cameras(voxel_size*2, n_poses=20, up=(0.0, 1.0, 0.0), focal_length=2.0, at=[16.0, 10.0, 16.0])
+    else:
+        cameras = create_surround_cameras(voxel_size*2, n_poses=20, up=(0.0, 1.0, 0.0), focal_length=2.0, at=[0.0, 0.0, 0.0])
+
     lights = pytorch3d.renderer.PointLights(location=[[0, 0, -3]], device=device)
     mesh_renderer = get_mesh_renderer(image_size=image_size, lights=lights, device=device)
 
