@@ -70,7 +70,7 @@ def load_sdf_net(filename=None, return_latent_codes=False):
 from rendering.raymarching import render_image
 from util import standard_normal_distribution
 
-generator = load_sdf_net(filename='hybrid_progressive_gan_generator_3-epoch-00250_32.to')
+generator = load_sdf_net(filename='pc_progressive_hybrid_progressive_gan_generator_0.to')
 
 COUNT = 30
 
@@ -86,7 +86,7 @@ for im in range(COUNT):
                              vertical_cutoff=1, angle=a)
         images.append(image)
     print("Saving image", im)
-    imageio.mimsave(f"plots_32/results_{im}.gif",images)
+    imageio.mimsave(f"pc_plots_32/results_{im}.gif",images)
 
 # if "hybrid_gan_interpolation" in sys.argv:
 #     from rendering.raymarching import render_image_for_index, render_image
@@ -122,7 +122,7 @@ for im in range(STEPS):
                             vertical_cutoff=1, angle=a)
         images.append(image)
     print("Saving image", im)
-    imageio.mimsave(f"plots_32_interpolation/results_{im}.gif",images)
+    imageio.mimsave(f"pc_plots_32_interpolation/results_{im}.gif",images)
     
 # for i in range(STEPS):
 #     plot.set_image(render_image(generator, codes[i, :], crop=True, radius=1.6, sdf_offset=-0.045, vertical_cutoff=1), i)
