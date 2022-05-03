@@ -70,20 +70,59 @@ def load_sdf_net(filename=None, return_latent_codes=False):
 from rendering.raymarching import render_image
 from util import standard_normal_distribution
 
-generator = load_sdf_net(filename='hybrid_progressive_gan_generator_3-epoch-00250.to')
+generator = load_sdf_net(filename='hybrid_progressive_gan_generator_3-epoch-00250_32.to')
 
-COUNT = 5
+COUNT = 30
 
 codes = standard_normal_distribution.sample([COUNT, LATENT_CODE_SIZE]).to(device)
 
 plot = ImageGrid(COUNT, create_viewer=False)
-angles = np.linspace(0, 360, 15)
+angles = np.linspace(0, 360, 30)
 for im in range(COUNT):
     images = []
     for a in angles:
         print("Starting iteration", a)
-        image = render_image(generator, codes[im, :], radius=1.6, crop=True, sdf_offset=-0.045,
+        image = render_image(generator, codes[im, :], resolution=200, radius=1.6, crop=True, sdf_offset=-0.045,
                              vertical_cutoff=1, angle=a)
         images.append(image)
     print("Saving image", im)
-    imageio.mimsave(f"plots/results_{im}.gif",images)
+    imageio.mimsave(f"plots_32/results_{im}.gif",images)
+
+# if "hybrid_gan_interpolation" in sys.argv:
+#     from rendering.raymarching import render_image_for_index, render_image
+#     from util import standard_normal_distribution
+#     import cv2
+#     sdf_net = load_sdf_net(filename='hybrid_gan_generator.to')
+
+#     OPTIONS = 10
+    
+#     codes = standard_normal_distribution.sample([OPTIONS, LATENT_CODE_SIZE]).to(device)
+    # for i in range(OPTIONS):
+    #     image = render_image(sdf_net, codes[i, :], resolution=200, radius=1.6, sdf_offset=-0.045, vertical_cutoff=1, crop=True)
+    #     image.save('plots/option-{:d}.png'.format(i))
+    
+STEPS = 30
+        
+code_start = codes[int(input('Enter index for starting shape: ')), :]
+code_end = codes[int(input('Enter index for ending shape: ')), :]
+
+with torch.no_grad():
+    codes = torch.zeros([STEPS, LATENT_CODE_SIZE], device=device)
+    for i in range(STEPS):
+        codes[i, :] = code_start * (1.0 - i / (STEPS - 1)) + code_end * i / (STEPS - 1)
+
+plot = ImageGrid(STEPS, create_viewer=False)
+
+angles = np.linspace(0, 360, STEPS)
+for im in range(STEPS):
+    images = []
+    for a in angles:
+        print("Starting iteration", a)
+        image = render_image(generator, codes[im, :], resolution=200, radius=1.6, crop=True, sdf_offset=-0.045,
+                            vertical_cutoff=1, angle=a)
+        images.append(image)
+    print("Saving image", im)
+    imageio.mimsave(f"plots_32_interpolation/results_{im}.gif",images)
+    
+# for i in range(STEPS):
+#     plot.set_image(render_image(generator, codes[i, :], crop=True, radius=1.6, sdf_offset=-0.045, vertical_cutoff=1), i)
